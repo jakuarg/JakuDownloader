@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:JakuDownloader.Views.Controls"
     xmlns:helpers="using:JakuDownloader.Helpers"
+    xmlns:local="using:JakuDownloader.Views"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     NavigationCacheMode="Required">
 
@@ -128,6 +129,106 @@
                     </HyperlinkButton>
                 </Grid>
 
+                <!--  Vista previa: aparece al pegar un link valido  -->
+                <Border
+                    Margin="0,16,0,0"
+                    Style="{StaticResource CardStyle}"
+                    Visibility="{x:Bind ViewModel.IsPreviewVisible, Mode=OneWay}">
+                    <Grid>
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="12"
+                            Visibility="{x:Bind ViewModel.IsPreviewLoading, Mode=OneWay}">
+                            <ProgressRing
+                                Width="20"
+                                Height="20"
+                                IsActive="{x:Bind ViewModel.IsPreviewLoading, Mode=OneWay}" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="Buscando información del video..." />
+                        </StackPanel>
+
+                        <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.IsPreviewFailed, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon
+                                VerticalAlignment="Top"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Glyph="&#xE946;" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Text="{x:Bind ViewModel.PreviewMessage, Mode=OneWay}"
+                                TextWrapping="Wrap" />
+                        </Grid>
+
+                        <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.IsPreviewReady, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!--  Dos bordes: el de afuera es el fondo mientras carga, el de adentro recorta la imagen con las esquinas redondeadas  -->
+                            <Border
+                                x:Name="PreviewThumbnail"
+                                Width="192"
+                                Height="108"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="{StaticResource ControlCornerRadius}">
+                                <Border CornerRadius="{StaticResource ControlCornerRadius}">
+                                    <Border.Background>
+                                        <ImageBrush ImageSource="{x:Bind local:BindingFunctions.ToThumbnail(ViewModel.PreviewThumbnailUrl), Mode=OneWay}" Stretch="UniformToFill" />
+                                    </Border.Background>
+                                </Border>
+                            </Border>
+
+                            <StackPanel
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Spacing="6">
+                                <TextBlock
+                                    MaxLines="2"
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="{x:Bind ViewModel.PreviewTitle, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xE77B;" />
+                                    <TextBlock
+                                        AutomationProperties.Name="{x:Bind ViewModel.PreviewChannel, Mode=OneWay}"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind ViewModel.PreviewChannel, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xE916;" />
+                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind ViewModel.PreviewDuration, Mode=OneWay}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!--  Tipo de descarga  -->
+                <toolkit:SettingsCard
+                    Margin="0,8,0,0"
+                    Description="Video con audio en MP4, o solo el audio en MP3"
+                    Header="Tipo de descarga">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8B2;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ComboBox
+                        MinWidth="{StaticResource OptionWidth}"
+                        AutomationProperties.Name="Tipo de descarga"
+                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
+                        SelectedIndex="{x:Bind ViewModel.MediaKindIndex, Mode=TwoWay}">
+                        <x:String>Video (MP4)</x:String>
+                        <x:String>Solo audio (MP3)</x:String>
+                    </ComboBox>
+                </toolkit:SettingsCard>
+
                 <!--  Progreso  -->
                 <StackPanel
                     Margin="0,12,0,0"
@@ -208,79 +309,17 @@
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Vista previa, calidad, formato, listas, subtítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
+                                Text="Calidad, formato, códecs, listas, subtítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
                                 TextWrapping="Wrap" />
                         </StackPanel>
                     </Expander.Header>
 
                     <StackPanel Spacing="4">
 
-                        <!--  Vista previa  -->
-                        <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
-                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Vista previa" />
-                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.VideoInfo}" Version="v00.03" />
-                        </StackPanel>
-
-                        <Border Style="{StaticResource CardStyle}">
-                            <Grid ColumnSpacing="16" Opacity="0.55">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <Border
-                                    x:Name="PreviewThumbnail"
-                                    Width="192"
-                                    Height="108"
-                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="{StaticResource ControlCornerRadius}">
-                                    <FontIcon
-                                        FontSize="32"
-                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                        Glyph="&#xE714;" />
-                                </Border>
-
-                                <StackPanel
-                                    Grid.Column="1"
-                                    VerticalAlignment="Center"
-                                    Spacing="6">
-                                    <TextBlock
-                                        Style="{StaticResource SubtitleTextBlockStyle}"
-                                        Text="Título del video"
-                                        TextTrimming="CharacterEllipsis" />
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <FontIcon FontSize="14" Glyph="&#xE77B;" />
-                                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Canal" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <FontIcon FontSize="14" Glyph="&#xE916;" />
-                                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Duración" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
                         <!--  Opciones  -->
-                        <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                        <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
                             <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Opciones" />
                         </StackPanel>
-
-                        <toolkit:SettingsCard Description="Video con audio, o solo el audio" Header="Tipo de descarga">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE8B2;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.VideoInfo}" Version="v00.03" />
-                                <ComboBox
-                                    MinWidth="{StaticResource OptionWidth}"
-                                    AutomationProperties.Name="Tipo de descarga"
-                                    IsEnabled="{x:Bind helpers:Features.VideoInfo}"
-                                    SelectedIndex="0">
-                                    <x:String>Video</x:String>
-                                    <x:String>Solo audio</x:String>
-                                </ComboBox>
-                            </StackPanel>
-                        </toolkit:SettingsCard>
 
                         <toolkit:SettingsCard Description="Resolución máxima del video" Header="Calidad">
                             <toolkit:SettingsCard.HeaderIcon>

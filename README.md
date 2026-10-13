@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.02.00 (en desarrollo)
+**Versión actual:** v00.03.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -57,9 +57,9 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Toast al terminar, con acceso a la carpeta
 
 ### v00.03.00 - Información del video
-- [ ] Vista previa: miniatura, título, canal y duración
-- [ ] Elegir entre video o solo audio
-- [ ] Audio a mp3
+- [x] Vista previa: miniatura, título, canal y duración
+- [x] Elegir entre video o solo audio
+- [x] Audio a mp3
 
 ### v00.04.00 - Calidad y formatos
 - [ ] Selector de resolución
@@ -232,12 +232,12 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 
 | Característica | yt-dlp |
 |---|---|
-| Información del video | `-J` |
+| Información del video | `--skip-download -O "%(.{id,title,channel,duration,thumbnail,live_status})j"` (solo esos campos; `-J` trae cientos de KB) |
 | Mejor calidad | `-f "bv*+ba/b" -S "res,fps,vcodec:h264,acodec:aac"` (a igual resolución prefiere H.264 + AAC) |
 | Límite de resolución | `-f "bv*[height<=1080]+ba/b"` |
 | Solo audio a mp3 | `-x --audio-format mp3 --audio-quality 0` |
 | Contenedor de salida | `--merge-output-format mp4` / `--remux-video mkv` |
-| Listas y canales | `--yes-playlist`, `--playlist-items` |
+| Listas y canales | `--yes-playlist`, `--playlist-items` (con links `/playlist`, `/@canal`, etc. yt-dlp ignora `--no-playlist`: la app los detecta antes) |
 | Subtítulos | `--write-subs --sub-langs es,en --embed-subs` |
 | Capítulos | `--embed-chapters` |
 | Miniatura y metadatos | `--embed-thumbnail --embed-metadata` |

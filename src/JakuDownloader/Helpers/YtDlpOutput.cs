@@ -62,7 +62,13 @@ public static class YtDlpOutput
             // MoveFiles es instantaneo, no vale la pena mostrarlo
             if (fields[1] == "MoveFiles") return false;
 
-            progress = new DownloadProgress(fields[1] == "Merger" ? DownloadStage.Merging : DownloadStage.Processing);
+            var stage = fields[1] switch
+            {
+                "Merger" => DownloadStage.Merging,
+                "ExtractAudio" => DownloadStage.ConvertingAudio,
+                _ => DownloadStage.Processing,
+            };
+            progress = new DownloadProgress(stage);
             return true;
         }
 

@@ -22,6 +22,8 @@ public partial class App : Application
             .ConfigureServices(services =>
             {
                 services.AddSingleton<ToolLocator>();
+                services.AddSingleton<YtDlpRunner>();
+                services.AddSingleton<VideoInfoService>();
                 services.AddSingleton<DownloadService>();
                 services.AddSingleton<NotificationService>();
                 services.AddSingleton<DownloadViewModel>();

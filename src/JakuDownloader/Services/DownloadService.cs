@@ -1,11 +1,10 @@
 using System.Diagnostics;
-using System.Text;
 using JakuDownloader.Helpers;
 using JakuDownloader.Models;
 
 namespace JakuDownloader.Services;
 
-public sealed class DownloadService(ToolLocator toolLocator)
+public sealed class DownloadService(YtDlpRunner runner)
 {
     public const string OutputTemplate = "%(title)s [%(id)s].%(ext)s";
 
@@ -13,7 +12,7 @@ public sealed class DownloadService(ToolLocator toolLocator)
     private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(150);
 
     /// <summary>
-    /// Descarga el video en la mejor calidad disponible como mp4.
+    /// Descarga el video como mp4 en la mejor calidad disponible, o solo el audio como mp3.
     /// </summary>
     /// <remarks>
     /// Los archivos intermedios van a una carpeta temporal propia de cada descarga,
@@ -22,6 +21,7 @@ public sealed class DownloadService(ToolLocator toolLocator)
     public async Task<DownloadResult> DownloadAsync(
         Uri url,
         string outputDirectory,
+        MediaKind kind,
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -31,7 +31,7 @@ public sealed class DownloadService(ToolLocator toolLocator)
 
         try
         {
-            return await RunYtDlpAsync(url, outputDirectory, tempDirectory, progress, cancellationToken);
+            return await RunYtDlpAsync(BuildArguments(url, outputDirectory, tempDirectory, kind), progress, cancellationToken);
         }
         finally
         {
@@ -55,28 +55,11 @@ public sealed class DownloadService(ToolLocator toolLocator)
     }
 
     private async Task<DownloadResult> RunYtDlpAsync(
-        Uri url,
-        string outputDirectory,
-        string tempDirectory,
+        IEnumerable<string> arguments,
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var startInfo = new ProcessStartInfo(toolLocator.YtDlpPath)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        foreach (var argument in BuildArguments(url, outputDirectory, tempDirectory))
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using var process = new Process { StartInfo = startInfo };
-        process.Start();
+        using var process = runner.Start(arguments);
 
         var outputTask = ReadOutputAsync(process.StandardOutput, progress);
         var errorTask = process.StandardError.ReadToEndAsync();
@@ -87,9 +70,7 @@ public sealed class DownloadService(ToolLocator toolLocator)
         }
         catch (OperationCanceledException)
         {
-            // yt-dlp lanza ffmpeg como hijo, hay que matar el arbol completo
-            try { process.Kill(entireProcessTree: true); }
-            catch (InvalidOperationException) { }
+            YtDlpRunner.Kill(process);
 
             // Esperar a que suelte los archivos antes de borrar la carpeta temporal
             await process.WaitForExitAsync();
@@ -102,34 +83,37 @@ public sealed class DownloadService(ToolLocator toolLocator)
 
         if (process.ExitCode != 0)
         {
-            var rawError = ExtractError(error) ?? $"yt-dlp terminó con código {process.ExitCode}.";
+            var rawError = YtDlpRunner.ExtractError(error) ?? $"yt-dlp terminó con código {process.ExitCode}.";
             return DownloadResult.Failed(YtDlpErrorTranslator.TryTranslate(rawError), rawError);
         }
 
         return DownloadResult.Completed(filePath);
     }
 
-    private IEnumerable<string> BuildArguments(Uri url, string outputDirectory, string tempDirectory)
+    private static IEnumerable<string> BuildArguments(Uri url, string outputDirectory, string tempDirectory, MediaKind kind)
     {
-        yield return "--encoding";
-        yield return "utf-8";
-        yield return "--no-playlist";
         yield return "--no-mtime";
 
-        // Mejor resolucion; a igual resolucion, H.264 + AAC para que el mp4 se reproduzca en cualquier lado
-        yield return "-f";
-        yield return "bv*+ba/b";
-        yield return "-S";
-        yield return "res,fps,vcodec:h264,acodec:aac";
-        yield return "--merge-output-format";
-        yield return "mp4";
-
-        yield return "--ffmpeg-location";
-        yield return toolLocator.ToolsDirectory;
-        if (toolLocator.HasDeno)
+        if (kind == MediaKind.Audio)
         {
-            yield return "--js-runtimes";
-            yield return $"deno:{toolLocator.DenoPath}";
+            // Mejor audio disponible convertido a mp3 en la calidad mas alta (VBR 0)
+            yield return "-f";
+            yield return "ba/b";
+            yield return "-x";
+            yield return "--audio-format";
+            yield return "mp3";
+            yield return "--audio-quality";
+            yield return "0";
+        }
+        else
+        {
+            // Mejor resolucion; a igual resolucion, H.264 + AAC para que el mp4 se reproduzca en cualquier lado
+            yield return "-f";
+            yield return "bv*+ba/b";
+            yield return "-S";
+            yield return "res,fps,vcodec:h264,acodec:aac";
+            yield return "--merge-output-format";
+            yield return "mp4";
         }
 
         yield return "-P";
@@ -179,13 +163,6 @@ public sealed class DownloadService(ToolLocator toolLocator)
         }
 
         return filePath;
-    }
-
-    private static string? ExtractError(string stderr)
-    {
-        var lines = stderr.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var error = lines.LastOrDefault(line => line.StartsWith("ERROR:", StringComparison.Ordinal));
-        return error is not null ? error["ERROR:".Length..].Trim() : lines.LastOrDefault();
     }
 
     private static async Task DeleteDirectoryAsync(string path)

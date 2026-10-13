@@ -7,7 +7,7 @@ namespace JakuDownloader.Helpers;
 public static class Features
 {
     /// <summary>v00.03.00: vista previa, video o solo audio, mp3.</summary>
-    public static bool VideoInfo => false;
+    public static bool VideoInfo => true;
 
     /// <summary>v00.04.00: resolucion, formato de salida y codecs.</summary>
     public static bool QualityAndFormats => false;

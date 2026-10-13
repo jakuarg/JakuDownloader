@@ -10,13 +10,21 @@ namespace JakuDownloader.ViewModels;
 
 public sealed partial class DownloadViewModel(
     DownloadService downloadService,
+    VideoInfoService videoInfoService,
     NotificationService notificationService,
     ToolLocator toolLocator) : ObservableObject
 {
     private const string UnexpectedErrorMessage =
         "Ocurrió un error inesperado. Podés volver a intentar o copiar los detalles para reportarlo.";
 
+    private const string CollectionMessage =
+        "Es un link de una lista de reproducción o de un canal. Por ahora se baja de a un video: abrí el video que quieras y pegá su link. Las listas y canales llegan en la v00.07.";
+
+    // Espera a que se termine de escribir o pegar el link antes de consultar a yt-dlp
+    private static readonly TimeSpan PreviewDelay = TimeSpan.FromMilliseconds(500);
+
     private CancellationTokenSource? _cancellation;
+    private CancellationTokenSource? _previewCancellation;
     private string? _lastFilePath;
     private DownloadStage? _announcedStage;
 
@@ -76,6 +84,44 @@ public sealed partial class DownloadViewModel(
     [NotifyPropertyChangedFor(nameof(ResultActionText))]
     public partial ResultAction ResultAction { get; set; }
 
+    /// <summary>
+    /// 0: video (mp4), 1: solo audio (mp3). Indice para el ComboBox.
+    /// </summary>
+    [ObservableProperty]
+    public partial int MediaKindIndex { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
+    [NotifyPropertyChangedFor(nameof(IsPreviewLoading))]
+    [NotifyPropertyChangedFor(nameof(IsPreviewReady))]
+    [NotifyPropertyChangedFor(nameof(IsPreviewFailed))]
+    public partial PreviewState PreviewState { get; set; }
+
+    [ObservableProperty]
+    public partial string PreviewTitle { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string PreviewChannel { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string PreviewDuration { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string? PreviewThumbnailUrl { get; set; }
+
+    [ObservableProperty]
+    public partial string PreviewMessage { get; set; } = string.Empty;
+
+    public bool IsPreviewVisible => PreviewState != PreviewState.None;
+
+    public bool IsPreviewLoading => PreviewState == PreviewState.Loading;
+
+    public bool IsPreviewReady => PreviewState == PreviewState.Ready;
+
+    public bool IsPreviewFailed => PreviewState == PreviewState.Failed;
+
+    public MediaKind MediaKind => MediaKindIndex == 1 ? MediaKind.Audio : MediaKind.Video;
+
     public bool IsIdle => !IsDownloading;
 
     public string DownloadDirectory { get; } = AppPaths.DownloadDirectory;
@@ -92,7 +138,11 @@ public sealed partial class DownloadViewModel(
         _ => string.Empty,
     };
 
-    private bool CanDownload() => !IsDownloading && !string.IsNullOrWhiteSpace(Url);
+    // Con un link de lista o canal el boton queda deshabilitado: la vista previa explica por que
+    private bool CanDownload()
+        => !IsDownloading
+            && !string.IsNullOrWhiteSpace(Url)
+            && !(UrlValidator.TryParse(Url, out var uri) && UrlValidator.IsCollection(uri));
 
     [RelayCommand(CanExecute = nameof(CanDownload))]
     private async Task DownloadAsync()
@@ -103,6 +153,12 @@ public sealed partial class DownloadViewModel(
         {
             ShowResult(InfoBarSeverity.Error, "El link no es válido",
                 "Revisá que sea un link completo de YouTube, por ejemplo https://www.youtube.com/watch?v=...");
+            return;
+        }
+
+        if (UrlValidator.IsCollection(uri))
+        {
+            ShowResult(InfoBarSeverity.Warning, "Las listas y canales todavía no se pueden bajar", CollectionMessage);
             return;
         }
 
@@ -130,7 +186,7 @@ public sealed partial class DownloadViewModel(
 
             // Progress<T> devuelve los reportes al hilo de la interfaz
             var progress = new Progress<DownloadProgress>(ApplyProgress);
-            var result = await downloadService.DownloadAsync(uri, outputDirectory, progress, _cancellation.Token);
+            var result = await downloadService.DownloadAsync(uri, outputDirectory, MediaKind, progress, _cancellation.Token);
 
             if (result.Success)
             {
@@ -274,7 +330,102 @@ public sealed partial class DownloadViewModel(
         }
     }
 
-    public void CancelDownload() => _cancellation?.Cancel();
+    public void CancelDownload()
+    {
+        _cancellation?.Cancel();
+        _previewCancellation?.Cancel();
+    }
+
+    partial void OnUrlChanged(string value)
+    {
+        // Un resultado anterior no corresponde al link nuevo. Si el link se vacio (por ejemplo
+        // despues de una descarga exitosa) el cartel se deja, porque es el resultado de esa descarga
+        if (value.Length > 0 && !IsDownloading) IsResultOpen = false;
+
+        RefreshPreview(value);
+    }
+
+    /// <summary>
+    /// Busca la informacion del video cada vez que cambia el link. Una busqueda nueva cancela la anterior.
+    /// </summary>
+    private async void RefreshPreview(string text)
+    {
+        _previewCancellation?.Cancel();
+        _previewCancellation = null;
+
+        if (!UrlValidator.TryParse(text, out var uri))
+        {
+            PreviewState = PreviewState.None;
+            return;
+        }
+
+        if (UrlValidator.IsCollection(uri))
+        {
+            PreviewMessage = CollectionMessage;
+            PreviewState = PreviewState.Failed;
+            return;
+        }
+
+        if (toolLocator.GetMissingTools().Count > 0)
+        {
+            PreviewState = PreviewState.None;
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _previewCancellation = cancellation;
+        PreviewState = PreviewState.Loading;
+
+        try
+        {
+            await Task.Delay(PreviewDelay, cancellation.Token);
+            var result = await videoInfoService.GetInfoAsync(uri, cancellation.Token);
+            if (cancellation.IsCancellationRequested) return;
+
+            if (result.Info is { } info)
+            {
+                ShowPreview(info);
+                AnnouncementRequested?.Invoke(this, $"Video encontrado: {info.Title}");
+            }
+            else
+            {
+                PreviewMessage = result.ErrorMessage ?? string.Empty;
+                PreviewState = PreviewState.Failed;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // La reemplazo otra busqueda o se borro el link
+        }
+        catch (Exception)
+        {
+            if (!cancellation.IsCancellationRequested)
+            {
+                PreviewMessage = "No se pudo obtener la información del video.";
+                PreviewState = PreviewState.Failed;
+            }
+        }
+        finally
+        {
+            if (_previewCancellation == cancellation) _previewCancellation = null;
+            cancellation.Dispose();
+        }
+    }
+
+    private void ShowPreview(VideoInfo info)
+    {
+        PreviewTitle = info.Title;
+        PreviewChannel = info.Channel ?? "Canal desconocido";
+        PreviewDuration = info switch
+        {
+            { IsLive: true } => "En vivo: se graba mientras dure la transmisión",
+            { IsUpcoming: true } => "Todavía no se estrenó",
+            { DurationSeconds: int seconds } => Formatters.FormatDuration(seconds),
+            _ => "Duración desconocida",
+        };
+        PreviewThumbnailUrl = info.ThumbnailUrl;
+        PreviewState = PreviewState.Ready;
+    }
 
     private void ApplyProgress(DownloadProgress progress)
     {
@@ -288,6 +439,7 @@ public sealed partial class DownloadViewModel(
             DownloadStage.DownloadingAudio => "Descargando audio",
             DownloadStage.Downloading => "Descargando",
             DownloadStage.Merging => "Uniendo video y audio...",
+            DownloadStage.ConvertingAudio => "Convirtiendo a mp3...",
             _ => "Procesando...",
         };
 

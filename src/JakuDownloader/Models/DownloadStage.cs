@@ -7,5 +7,6 @@ public enum DownloadStage
     DownloadingAudio,
     Downloading,
     Merging,
+    ConvertingAudio,
     Processing,
 }
