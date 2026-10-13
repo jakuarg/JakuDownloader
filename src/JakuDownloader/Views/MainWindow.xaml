@@ -59,29 +59,15 @@
                         <FontIcon Glyph="&#xE896;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem
-                    AutomationProperties.Name="Cola, próximamente"
-                    Tag="queue"
-                    ToolTipService.ToolTip="Cola (próximamente)">
+                <NavigationViewItem Content="Cola" Tag="queue">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8FD;" />
                     </NavigationViewItem.Icon>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock VerticalAlignment="Center" Text="Cola" />
-                        <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" IsCompact="True" Version="v00.06" />
-                    </StackPanel>
                 </NavigationViewItem>
-                <NavigationViewItem
-                    AutomationProperties.Name="Historial, próximamente"
-                    Tag="history"
-                    ToolTipService.ToolTip="Historial (próximamente)">
+                <NavigationViewItem Content="Historial" Tag="history">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE81C;" />
                     </NavigationViewItem.Icon>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBlock VerticalAlignment="Center" Text="Historial" />
-                        <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" IsCompact="True" Version="v00.06" />
-                    </StackPanel>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 

@@ -11,6 +11,17 @@ public static class YtDlpOutput
     private const string DownloadPrefix = "[jaku-dl] ";
     private const string PostprocessPrefix = "[jaku-pp] ";
     private const string FilePrefix = "[jaku-file] ";
+    private const string InfoPrefix = "[jaku-info] ";
+
+    // JSON y no campos separados: un titulo puede tener cualquier caracter
+    public const string InfoTemplate = "video:" + InfoPrefix + "%(.{id,title,channel,uploader,duration,thumbnail,live_status})j";
+
+    public static bool TryParseInfo(string line, out VideoInfo info)
+    {
+        info = null!;
+        return line.StartsWith(InfoPrefix, StringComparison.Ordinal)
+            && Services.VideoInfoService.TryParse(line[InfoPrefix.Length..], out info);
+    }
 
     public const string DownloadTemplate = "download:" + DownloadPrefix
         + "%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s"

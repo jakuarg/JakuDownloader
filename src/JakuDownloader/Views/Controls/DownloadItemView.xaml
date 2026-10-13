@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="JakuDownloader.Views.Controls.DownloadItemView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:JakuDownloader.Views">
+
+    <Border Padding="12" Style="{StaticResource CardStyle}">
+        <Grid ColumnSpacing="16">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup>
+                    <VisualState x:Name="Narrow">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="Thumbnail.Visibility" Value="Collapsed" />
+                            <Setter Target="Actions.(Grid.Row)" Value="1" />
+                            <Setter Target="Actions.(Grid.Column)" Value="1" />
+                            <Setter Target="Actions.HorizontalAlignment" Value="Left" />
+                            <Setter Target="Actions.Margin" Value="0,8,0,0" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Wide">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="720" />
+                        </VisualState.StateTriggers>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  Miniatura con esquinas redondeadas (el borde de adentro recorta la imagen)  -->
+            <Border
+                x:Name="Thumbnail"
+                Width="112"
+                Height="63"
+                VerticalAlignment="Center"
+                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                CornerRadius="{StaticResource ControlCornerRadius}">
+                <Border CornerRadius="{StaticResource ControlCornerRadius}">
+                    <Border.Background>
+                        <ImageBrush ImageSource="{x:Bind local:BindingFunctions.ToThumbnail(Item.ThumbnailUrl), Mode=OneWay}" Stretch="UniformToFill" />
+                    </Border.Background>
+                </Border>
+            </Border>
+
+            <StackPanel
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Spacing="4">
+                <TextBlock
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="{x:Bind Item.Title, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind Item.Subtitle, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+                <ProgressBar
+                    Margin="0,4,0,2"
+                    AutomationProperties.Name="Progreso"
+                    IsIndeterminate="{x:Bind Item.IsProgressIndeterminate, Mode=OneWay}"
+                    Maximum="100"
+                    ShowPaused="{x:Bind Item.IsPaused, Mode=OneWay}"
+                    Value="{x:Bind Item.ProgressValue, Mode=OneWay}"
+                    Visibility="{x:Bind Item.ShowProgress, Mode=OneWay}" />
+                <TextBlock
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind Item.StatusText, Mode=OneWay}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind Item.IsNotFailed, Mode=OneWay}" />
+                <TextBlock
+                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind Item.StatusText, Mode=OneWay}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind Item.IsFailed, Mode=OneWay}" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind Item.DetailsText, Mode=OneWay}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind Item.IsDownloading, Mode=OneWay}" />
+            </StackPanel>
+
+            <!--  Solo se muestran las acciones que valen en el estado actual  -->
+            <StackPanel
+                x:Name="Actions"
+                Grid.Column="2"
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="4">
+                <Button
+                    AutomationProperties.Name="Pausar"
+                    Command="{x:Bind Item.PauseCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Pausar"
+                    Visibility="{x:Bind Item.CanPause, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE769;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Reanudar"
+                    Command="{x:Bind Item.ResumeCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Reanudar"
+                    Visibility="{x:Bind Item.CanResume, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE768;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Reintentar"
+                    Command="{x:Bind Item.RetryCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Reintentar"
+                    Visibility="{x:Bind Item.CanRetry, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE72C;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Abrir"
+                    Command="{x:Bind Item.OpenFileCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Abrir"
+                    Visibility="{x:Bind Item.CanOpen, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE8E5;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Mostrar en la carpeta"
+                    Command="{x:Bind Item.ShowInFolderCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Mostrar en la carpeta"
+                    Visibility="{x:Bind Item.CanOpen, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE838;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Copiar detalles técnicos del error"
+                    Command="{x:Bind Item.CopyDetailsCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Copiar detalles técnicos"
+                    Visibility="{x:Bind Item.HasErrorDetails, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE8C8;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Cancelar"
+                    Command="{x:Bind Item.CancelCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Cancelar"
+                    Visibility="{x:Bind Item.CanCancel, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE711;" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="Quitar de la lista"
+                    Command="{x:Bind Item.RemoveCommand, Mode=OneWay}"
+                    ToolTipService.ToolTip="Quitar de la lista"
+                    Visibility="{x:Bind Item.CanRemove, Mode=OneWay}">
+                    <FontIcon FontSize="16" Glyph="&#xE74D;" />
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

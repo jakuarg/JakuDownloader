@@ -13,35 +13,69 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
     /// Descarga el video o solo el audio con las opciones elegidas.
     /// </summary>
     /// <remarks>
-    /// yt-dlp trabaja solo dentro de una carpeta temporal propia de cada descarga y despues la app
-    /// mueve el archivo final al destino. Asi yt-dlp nunca ve los archivos que ya estan en el destino:
-    /// si viera un video con el mismo nombre que su archivo intermedio, lo tomaria como propio y lo
-    /// borraria despues de extraer el audio. Al cancelar o fallar alcanza con borrar la carpeta temporal.
+    /// yt-dlp trabaja solo dentro de <paramref name="workDirectory"/> y despues el archivo final se mueve
+    /// al destino. Asi yt-dlp nunca ve los archivos que ya estan en el destino: si viera un video con el
+    /// mismo nombre que su archivo intermedio, lo tomaria como propio y lo borraria despues de extraer el
+    /// audio. Quien llama decide que hacer con la carpeta de trabajo: borrarla, o conservarla para que
+    /// yt-dlp retome una descarga pausada desde los archivos parciales.
     /// </remarks>
     public async Task<DownloadResult> DownloadAsync(
         Uri url,
         string outputDirectory,
+        string workDirectory,
         DownloadOptions options,
         IProgress<DownloadProgress>? progress,
+        IProgress<VideoInfo>? info,
         CancellationToken cancellationToken)
     {
-        var tempDirectory = Path.Combine(AppPaths.GetTempRoot(outputDirectory), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDirectory);
-        HideTempRoot(outputDirectory);
+        var arguments = BuildArguments(url, workDirectory, settings.FileNameTemplate, options);
+        var result = await RunYtDlpAsync(arguments, progress, info, cancellationToken);
+        if (!result.Success || result.FilePath is null) return result;
+
+        Directory.CreateDirectory(outputDirectory);
+        return DownloadResult.Completed(MoveToDestination(result.FilePath, outputDirectory));
+    }
+
+    /// <summary>
+    /// Crea una carpeta de trabajo nueva dentro de la carpeta oculta .jaku-temp del destino.
+    /// </summary>
+    public static string CreateWorkDirectory(string outputDirectory)
+    {
+        var workDirectory = Path.Combine(AppPaths.GetTempRoot(outputDirectory), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(workDirectory);
+        var tempRoot = new DirectoryInfo(AppPaths.GetTempRoot(outputDirectory));
+        tempRoot.Attributes |= FileAttributes.Hidden;
+        return workDirectory;
+    }
+
+    /// <summary>
+    /// Borra una carpeta de trabajo y, si quedo vacia, la carpeta .jaku-temp que la contiene.
+    /// </summary>
+    public static async Task DeleteWorkDirectoryAsync(string workDirectory)
+    {
+        // Justo despues de matar el proceso Windows puede tardar un poco en liberar los archivos
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(workDirectory)) Directory.Delete(workDirectory, recursive: true);
+                break;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                await Task.Delay(200);
+            }
+        }
 
         try
         {
-            var arguments = BuildArguments(url, tempDirectory, settings.FileNameTemplate, options);
-            var result = await RunYtDlpAsync(arguments, progress, cancellationToken);
-            if (!result.Success || result.FilePath is null) return result;
-
-            return DownloadResult.Completed(MoveToDestination(result.FilePath, outputDirectory));
+            var tempRoot = Path.GetDirectoryName(workDirectory);
+            if (tempRoot is not null && Directory.Exists(tempRoot) && !Directory.EnumerateFileSystemEntries(tempRoot).Any())
+            {
+                Directory.Delete(tempRoot);
+            }
         }
-        finally
-        {
-            await DeleteDirectoryAsync(tempDirectory);
-            DeleteTempRootIfEmpty(outputDirectory);
-        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     /// <summary>
@@ -54,18 +88,18 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
             var tempRoot = AppPaths.GetTempRoot(outputDirectory);
             if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
         }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     private async Task<DownloadResult> RunYtDlpAsync(
         IEnumerable<string> arguments,
         IProgress<DownloadProgress>? progress,
+        IProgress<VideoInfo>? info,
         CancellationToken cancellationToken)
     {
         using var process = runner.Start(arguments);
 
-        var outputTask = ReadOutputAsync(process.StandardOutput, progress);
+        var outputTask = ReadOutputAsync(process.StandardOutput, progress, info);
         var errorTask = process.StandardError.ReadToEndAsync();
 
         try
@@ -76,7 +110,7 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
         {
             YtDlpRunner.Kill(process);
 
-            // Esperar a que suelte los archivos antes de borrar la carpeta temporal
+            // Esperar a que suelte los archivos antes de que se borre o se retome la carpeta de trabajo
             await process.WaitForExitAsync();
             await Task.WhenAll((Task)outputTask, errorTask);
             throw;
@@ -108,7 +142,7 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
             destination = Path.Combine(outputDirectory, $"{name} ({copy}){extension}");
         }
 
-        // La carpeta temporal esta dentro del destino: es el mismo disco y el movimiento es instantaneo
+        // La carpeta de trabajo esta dentro del destino: es el mismo disco y el movimiento es instantaneo
         File.Move(sourcePath, destination);
         return destination;
     }
@@ -129,6 +163,8 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
 
         // --print silencia la salida normal; --progress la vuelve a activar con nuestro formato
         yield return "--print";
+        yield return YtDlpOutput.InfoTemplate;
+        yield return "--print";
         yield return YtDlpOutput.FilePathTemplate;
         yield return "--progress";
         yield return "--newline";
@@ -141,7 +177,7 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
         yield return url.AbsoluteUri;
     }
 
-    private static async Task<string?> ReadOutputAsync(StreamReader reader, IProgress<DownloadProgress>? progress)
+    private static async Task<string?> ReadOutputAsync(StreamReader reader, IProgress<DownloadProgress>? progress, IProgress<VideoInfo>? info)
     {
         string? filePath = null;
         DownloadStage? lastStage = null;
@@ -152,6 +188,10 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
             if (YtDlpOutput.TryParseFilePath(line, out var path))
             {
                 filePath = path;
+            }
+            else if (YtDlpOutput.TryParseInfo(line, out var videoInfo))
+            {
+                info?.Report(videoInfo);
             }
             else if (progress is not null && YtDlpOutput.TryParseProgress(line, out var update))
             {
@@ -167,42 +207,5 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
         }
 
         return filePath;
-    }
-
-    private static async Task DeleteDirectoryAsync(string path)
-    {
-        // Justo despues de matar el proceso Windows puede tardar un poco en liberar los archivos
-        for (var attempt = 0; attempt < 5; attempt++)
-        {
-            try
-            {
-                if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
-                return;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                await Task.Delay(200);
-            }
-        }
-    }
-
-    private static void HideTempRoot(string outputDirectory)
-    {
-        var tempRoot = new DirectoryInfo(AppPaths.GetTempRoot(outputDirectory));
-        tempRoot.Attributes |= FileAttributes.Hidden;
-    }
-
-    private static void DeleteTempRootIfEmpty(string outputDirectory)
-    {
-        try
-        {
-            var tempRoot = AppPaths.GetTempRoot(outputDirectory);
-            if (Directory.Exists(tempRoot) && !Directory.EnumerateFileSystemEntries(tempRoot).Any())
-            {
-                Directory.Delete(tempRoot);
-            }
-        }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
     }
 }

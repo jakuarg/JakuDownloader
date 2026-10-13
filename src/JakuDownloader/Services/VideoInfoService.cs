@@ -48,7 +48,10 @@ public sealed class VideoInfoService(YtDlpRunner runner)
             : VideoInfoResult.Failed(GenericError);
     }
 
-    private static bool TryParse(string json, out VideoInfo info)
+    /// <summary>
+    /// Interpreta el JSON reducido que imprime yt-dlp con los campos de <see cref="Fields"/>.
+    /// </summary>
+    public static bool TryParse(string json, out VideoInfo info)
     {
         info = null!;
         try

@@ -14,14 +14,17 @@ public sealed partial class MainWindow : Window
     private const int MinimumWidth = 640;
     private const int MinimumHeight = 500;
 
-    private readonly DownloadViewModel _downloadViewModel;
+    private readonly DownloadQueueViewModel _queue;
     private CloseState _closeState = CloseState.Open;
     private double _appliedScale;
 
-    public MainWindow(DownloadViewModel downloadViewModel)
+    public MainWindow(DownloadQueueViewModel queue)
     {
-        _downloadViewModel = downloadViewModel;
+        _queue = queue;
         InitializeComponent();
+
+        // Los avisos de Windows de inicio y error solo se muestran si la ventana no esta al frente
+        Activated += (_, args) => App.IsMainWindowActive = args.WindowActivationState != WindowActivationState.Deactivated;
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
@@ -39,7 +42,7 @@ public sealed partial class MainWindow : Window
         NavView.SelectedItem = NavView.MenuItems[0];
 
         AppWindow.Closing += AppWindow_Closing;
-        Closed += (_, _) => _downloadViewModel.CancelDownload();
+        Closed += (_, _) => _queue.CancelAllCommand.Execute(null);
     }
 
     private enum CloseState
@@ -60,23 +63,24 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Si hay una descarga en curso, pregunta antes de cerrar y espera a que se cancele y limpie.
+    /// Si hay descargas sin terminar, pregunta antes de cerrar y espera a que se cancelen y limpien.
     /// </summary>
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_closeState == CloseState.Ready) return;
-        if (_closeState == CloseState.Open && !_downloadViewModel.IsDownloading) return;
+        if (_closeState == CloseState.Open && _queue.PendingCount == 0) return;
 
         // Mientras se pregunta o se termina de cancelar, los otros intentos de cierre se ignoran
         args.Cancel = true;
         if (_closeState != CloseState.Open) return;
 
         _closeState = CloseState.Confirming;
+        var count = _queue.PendingCount;
         var dialog = new ContentDialog
         {
             XamlRoot = RootGrid.XamlRoot,
-            Title = "Hay una descarga en curso",
-            Content = "Si cerrás ahora, la descarga se cancela y se borran los archivos parciales.",
+            Title = count == 1 ? "Hay una descarga sin terminar" : $"Hay {count} descargas sin terminar",
+            Content = "Si cerrás ahora, se cancelan y se borran los archivos parciales, incluidas las que están en pausa.",
             PrimaryButtonText = "Cancelar y salir",
             CloseButtonText = "Seguir descargando",
             DefaultButton = ContentDialogButton.Close,
@@ -89,7 +93,7 @@ public sealed partial class MainWindow : Window
         }
 
         _closeState = CloseState.Finishing;
-        await _downloadViewModel.CancelAndWaitAsync();
+        await _queue.CancelAllAndWaitAsync();
         _closeState = CloseState.Ready;
         Close();
     }

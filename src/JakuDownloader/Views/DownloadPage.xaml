@@ -7,6 +7,7 @@
     xmlns:helpers="using:JakuDownloader.Helpers"
     xmlns:local="using:JakuDownloader.Views"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
+    xmlns:vm="using:JakuDownloader.ViewModels"
     NavigationCacheMode="Required">
 
     <Grid>
@@ -22,8 +23,6 @@
                         <Setter Target="UrlActions.(Grid.Row)" Value="1" />
                         <Setter Target="UrlActions.(Grid.Column)" Value="0" />
                         <Setter Target="UrlActions.HorizontalAlignment" Value="Right" />
-                        <Setter Target="ProgressDetails.(Grid.Row)" Value="1" />
-                        <Setter Target="ProgressDetails.(Grid.Column)" Value="0" />
                         <Setter Target="PreviewThumbnail.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
@@ -91,7 +90,6 @@
                     <TextBox
                         x:Name="UrlBox"
                         Header="Link del video"
-                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                         KeyDown="UrlBox_KeyDown"
                         PlaceholderText="https://www.youtube.com/watch?v=..."
                         Text="{x:Bind ViewModel.Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -116,22 +114,10 @@
                             AutomationProperties.Name="Descargar"
                             Command="{x:Bind ViewModel.DownloadCommand}"
                             Style="{StaticResource AccentButtonStyle}"
-                            Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}">
+                            ToolTipService.ToolTip="Agregar a la cola">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon FontSize="16" Glyph="&#xE896;" />
                                 <TextBlock Text="Descargar" />
-                            </StackPanel>
-                        </Button>
-
-                        <Button
-                            x:Name="CancelButton"
-                            MinWidth="120"
-                            AutomationProperties.Name="Cancelar la descarga"
-                            Command="{x:Bind ViewModel.CancelCommand}"
-                            Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon FontSize="16" Glyph="&#xE711;" />
-                                <TextBlock Text="Cancelar" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -165,6 +151,43 @@
                         <TextBlock Text="{x:Bind ViewModel.DownloadDirectory, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
                     </HyperlinkButton>
                 </Grid>
+
+                <!--  Resultado: errores al agregar a la cola y la ultima descarga completa  -->
+                <InfoBar
+                    Margin="0,12,0,0"
+                    IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
+                    Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
+                    Severity="{x:Bind ViewModel.ResultSeverity, Mode=OneWay}"
+                    Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <Button
+                            Command="{x:Bind ViewModel.OpenResultFolderCommand}"
+                            Content="Abrir carpeta"
+                            Visibility="{x:Bind ViewModel.CanOpenResultFolder, Mode=OneWay}" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+
+                <!--  Descargas en curso: las terminadas y canceladas quedan en la Cola  -->
+                <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.Queue.HasActiveItems, Mode=OneWay}">
+                    <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Descargas en curso" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.Queue.Summary, Mode=OneWay}" />
+                    </StackPanel>
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Queue.ActiveItems}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="4" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DownloadItemViewModel">
+                                <controls:DownloadItemView Item="{x:Bind}" />
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
 
                 <!--  Vista previa: aparece al pegar un link valido  -->
                 <Border
@@ -259,7 +282,6 @@
                     <ComboBox
                         MinWidth="{StaticResource OptionWidth}"
                         AutomationProperties.Name="Tipo de descarga"
-                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                         SelectedIndex="{x:Bind ViewModel.MediaKindIndex, Mode=TwoWay}">
                         <x:String>Video</x:String>
                         <x:String>Solo audio</x:String>
@@ -274,7 +296,6 @@
                         <ComboBox
                             MinWidth="{StaticResource OptionWidth}"
                             AutomationProperties.Name="Formato de video"
-                            IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                             SelectedIndex="{x:Bind ViewModel.VideoFormatIndex, Mode=TwoWay}"
                             Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
                             <x:String>MP4 (se reproduce en todos lados)</x:String>
@@ -284,7 +305,6 @@
                         <ComboBox
                             MinWidth="{StaticResource OptionWidth}"
                             AutomationProperties.Name="Formato de audio"
-                            IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                             SelectedIndex="{x:Bind ViewModel.AudioFormatIndex, Mode=TwoWay}"
                             Visibility="{x:Bind ViewModel.IsAudio, Mode=OneWay}">
                             <x:String>MP3</x:String>
@@ -306,7 +326,6 @@
                     <ComboBox
                         MinWidth="{StaticResource OptionWidth}"
                         AutomationProperties.Name="Calidad"
-                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                         SelectedIndex="{x:Bind ViewModel.ResolutionIndex, Mode=TwoWay}">
                         <x:String>La mejor disponible</x:String>
                         <x:String>Hasta 2160p (4K)</x:String>
@@ -351,71 +370,6 @@
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
-
-                <!--  Progreso  -->
-                <StackPanel
-                    Margin="0,12,0,0"
-                    Spacing="6"
-                    Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
-                    <ProgressBar
-                        AutomationProperties.Name="Progreso de la descarga"
-                        IsIndeterminate="{x:Bind ViewModel.IsProgressIndeterminate, Mode=OneWay}"
-                        Maximum="100"
-                        Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
-                    <Grid ColumnSpacing="12" RowSpacing="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock
-                            x:Name="StageLabel"
-                            Text="{x:Bind ViewModel.StageText, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis" />
-                        <TextBlock
-                            x:Name="ProgressDetails"
-                            Grid.Column="1"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="{x:Bind ViewModel.DetailsText, Mode=OneWay}"
-                            TextWrapping="Wrap" />
-                    </Grid>
-                </StackPanel>
-
-                <!--  Resultado  -->
-                <InfoBar
-                    Margin="0,12,0,0"
-                    IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
-                    Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
-                    Severity="{x:Bind ViewModel.ResultSeverity, Mode=OneWay}"
-                    Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}">
-                    <InfoBar.ActionButton>
-                        <Button
-                            Command="{x:Bind ViewModel.ExecuteResultActionCommand}"
-                            Content="{x:Bind ViewModel.ResultActionText, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.HasResultAction, Mode=OneWay}" />
-                    </InfoBar.ActionButton>
-                    <StackPanel
-                        Margin="0,0,0,12"
-                        Spacing="4"
-                        Visibility="{x:Bind ViewModel.HasResultDetails, Mode=OneWay}">
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            IsTextSelectionEnabled="True"
-                            MaxLines="4"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind ViewModel.ResultDetails, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="Wrap"
-                            Visibility="{x:Bind ViewModel.IsResultDetailsVisible, Mode=OneWay}" />
-                        <HyperlinkButton
-                            Padding="0"
-                            Command="{x:Bind ViewModel.CopyDetailsCommand}"
-                            Content="Copiar detalles técnicos" />
-                    </StackPanel>
-                </InfoBar>
 
                 <!--
                     Funciones del roadmap: plegadas para que la pantalla muestre primero lo que ya funciona.

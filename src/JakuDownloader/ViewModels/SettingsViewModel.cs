@@ -17,6 +17,25 @@ public sealed partial class SettingsViewModel : ObservableObject
         Tools = tools;
         DownloadDirectory = settings.DownloadDirectory;
         TemplateText = settings.FileNameTemplate;
+        MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
+    }
+
+    /// <summary>
+    /// Double porque es lo que usa NumberBox; se guarda como entero entre 1 y 10.
+    /// </summary>
+    [ObservableProperty]
+    public partial double MaxConcurrentDownloads { get; set; }
+
+    partial void OnMaxConcurrentDownloadsChanged(double value)
+    {
+        // NumberBox informa NaN si se borra el numero: se espera a que escriban uno
+        if (double.IsNaN(value)) return;
+
+        var limit = Math.Clamp((int)Math.Round(value), 1, 10);
+        if (limit == _settings.MaxConcurrentDownloads) return;
+
+        var stored = limit == SettingsService.DefaultMaxConcurrentDownloads ? (int?)null : limit;
+        TrySave(current => current with { MaxConcurrentDownloads = stored });
     }
 
     public ToolsViewModel Tools { get; }

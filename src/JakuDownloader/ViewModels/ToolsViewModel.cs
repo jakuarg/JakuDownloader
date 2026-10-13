@@ -19,12 +19,14 @@ public sealed partial class ToolsViewModel : ObservableObject
     private readonly ToolLocator _toolLocator;
     private readonly ToolInstaller _toolInstaller;
     private readonly DownloadViewModel _downloadViewModel;
+    private readonly DownloadQueueViewModel _queue;
 
-    public ToolsViewModel(ToolLocator toolLocator, ToolInstaller toolInstaller, DownloadViewModel downloadViewModel)
+    public ToolsViewModel(ToolLocator toolLocator, ToolInstaller toolInstaller, DownloadViewModel downloadViewModel, DownloadQueueViewModel queue)
     {
         _toolLocator = toolLocator;
         _toolInstaller = toolInstaller;
         _downloadViewModel = downloadViewModel;
+        _queue = queue;
         Refresh();
     }
 
@@ -113,7 +115,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private async Task InstallMissingAsync()
     {
         IsInstallResultOpen = false;
-        if (_downloadViewModel.IsDownloading)
+        if (_queue.HasRunningDownloads)
         {
             ShowInstallResult(InfoBarSeverity.Warning, "Hay una descarga en curso", "Esperá a que termine y volvé a intentar.");
             return;
@@ -167,7 +169,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private async Task UpdateYtDlpAsync()
     {
         // Mientras descarga, yt-dlp.exe esta en uso y no se puede reemplazar
-        if (_downloadViewModel.IsDownloading)
+        if (_queue.HasRunningDownloads)
         {
             UpdateDescription = "Esperá a que termine la descarga en curso y volvé a intentar.";
             return;

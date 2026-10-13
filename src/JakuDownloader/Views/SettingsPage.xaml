@@ -115,16 +115,12 @@
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE762;" />
                     </toolkit:SettingsCard.HeaderIcon>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" Version="v00.06" />
-                        <NumberBox
-                            AutomationProperties.Name="Descargas simultáneas"
-                            IsEnabled="{x:Bind helpers:Features.Queue}"
-                            Maximum="10"
-                            Minimum="1"
-                            SpinButtonPlacementMode="Inline"
-                            Value="3" />
-                    </StackPanel>
+                    <NumberBox
+                        AutomationProperties.Name="Descargas simultáneas"
+                        Maximum="10"
+                        Minimum="1"
+                        SpinButtonPlacementMode="Inline"
+                        Value="{x:Bind ViewModel.MaxConcurrentDownloads, Mode=TwoWay}" />
                 </toolkit:SettingsCard>
 
                 <!--  Herramientas  -->

@@ -16,7 +16,7 @@ public static class Features
     public static bool Settings => true;
 
     /// <summary>v00.06.00: cola de descargas e historial.</summary>
-    public static bool Queue => false;
+    public static bool Queue => true;
 
     /// <summary>v00.07.00: listas de reproduccion y canales.</summary>
     public static bool Playlists => false;

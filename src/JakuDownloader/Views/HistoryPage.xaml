@@ -3,8 +3,8 @@
     x:Class="JakuDownloader.Views.HistoryPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:JakuDownloader.Views.Controls"
-    xmlns:helpers="using:JakuDownloader.Helpers">
+    xmlns:local="using:JakuDownloader.Views"
+    xmlns:vm="using:JakuDownloader.ViewModels">
 
     <Grid>
         <VisualStateManager.VisualStateGroups>
@@ -15,11 +15,6 @@
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="ContentPanel.Padding" Value="16,8,16,24" />
-                        <Setter Target="ExampleThumbnail.Visibility" Value="Collapsed" />
-                        <Setter Target="ExampleActions.(Grid.Row)" Value="1" />
-                        <Setter Target="ExampleActions.(Grid.Column)" Value="1" />
-                        <Setter Target="ExampleActions.HorizontalAlignment" Value="Left" />
-                        <Setter Target="ExampleActions.Margin" Value="0,8,0,0" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="Wide">
@@ -33,25 +28,24 @@
         <ScrollViewer>
             <StackPanel x:Name="ContentPanel" Style="{StaticResource PageContentStyle}">
 
-                <StackPanel
-                    Margin="0,0,0,20"
-                    Orientation="Horizontal"
-                    Spacing="12">
-                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Historial" />
-                    <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" Version="v00.06" />
-                </StackPanel>
+                <TextBlock Style="{StaticResource PageTitleStyle}" Text="Historial" />
 
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" MaxWidth="400" />
+                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <AutoSuggestBox
                         AutomationProperties.Name="Buscar en el historial"
-                        IsEnabled="{x:Bind helpers:Features.Queue}"
-                        PlaceholderText="Buscar en el historial"
-                        QueryIcon="Find" />
-                    <Button Grid.Column="1" IsEnabled="{x:Bind helpers:Features.Queue}">
+                        IsEnabled="{x:Bind ViewModel.HasEntries, Mode=OneWay}"
+                        PlaceholderText="Buscar por título o canal"
+                        QueryIcon="Find"
+                        Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}" />
+                    <Button
+                        Grid.Column="2"
+                        Click="ClearHistory_Click"
+                        IsEnabled="{x:Bind ViewModel.HasEntries, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon FontSize="16" Glyph="&#xE74D;" />
                             <TextBlock Text="Borrar historial" />
@@ -59,82 +53,102 @@
                     </Button>
                 </Grid>
 
+                <InfoBar
+                    Margin="0,12,0,0"
+                    IsOpen="{x:Bind ViewModel.IsMessageOpen, Mode=TwoWay}"
+                    Message="{x:Bind ViewModel.Message, Mode=OneWay}"
+                    Severity="Informational" />
+
                 <TextBlock
-                    Margin="1,16,0,8"
+                    Margin="1,16,0,0"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="Ejemplo de cómo se va a ver cada descarga terminada. Todavía no se guarda el historial."
-                    TextWrapping="Wrap" />
+                    Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
 
-                <!--  Ejemplo. Botones deshabilitados: no son acciones reales  -->
-                <Border Style="{StaticResource CardStyle}">
-                    <Grid ColumnSpacing="16" Opacity="0.6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <ItemsRepeater Margin="0,12,0,0" ItemsSource="{x:Bind ViewModel.Items}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="4" />
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="vm:HistoryItemViewModel">
+                            <Border Padding="12" Style="{StaticResource CardStyle}">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                        <Border
-                            x:Name="ExampleThumbnail"
-                            Width="112"
-                            Height="63"
-                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                            CornerRadius="{StaticResource ControlCornerRadius}">
-                            <FontIcon Foreground="{ThemeResource TextFillColorTertiaryBrush}" Glyph="&#xE714;" />
-                        </Border>
+                                    <Border
+                                        Width="112"
+                                        Height="63"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="{StaticResource ControlCornerRadius}">
+                                        <Border CornerRadius="{StaticResource ControlCornerRadius}">
+                                            <Border.Background>
+                                                <ImageBrush ImageSource="{x:Bind local:BindingFunctions.ToThumbnail(ThumbnailUrl)}" Stretch="UniformToFill" />
+                                            </Border.Background>
+                                        </Border>
+                                    </Border>
 
-                        <StackPanel
-                            Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Spacing="4">
-                            <TextBlock
-                                Style="{StaticResource BodyStrongTextBlockStyle}"
-                                Text="Ejemplo: título del video"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Canal · 13/10/2026 03:08 · MP4 1080p · 27,4 MB"
-                                TextWrapping="Wrap" />
-                        </StackPanel>
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Spacing="4">
+                                        <TextBlock
+                                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                                            Text="{x:Bind Title}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Subtitle}"
+                                            TextWrapping="Wrap" />
+                                        <TextBlock
+                                            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="El archivo ya no está en su carpeta"
+                                            Visibility="{x:Bind FileMissing}" />
+                                    </StackPanel>
 
-                        <StackPanel
-                            x:Name="ExampleActions"
-                            Grid.Column="2"
-                            VerticalAlignment="Center"
-                            Orientation="Horizontal"
-                            Spacing="4">
-                            <Button
-                                AutomationProperties.Name="Abrir (ejemplo)"
-                                IsEnabled="False"
-                                ToolTipService.ToolTip="Abrir">
-                                <FontIcon FontSize="16" Glyph="&#xE768;" />
-                            </Button>
-                            <Button
-                                AutomationProperties.Name="Mostrar en la carpeta (ejemplo)"
-                                IsEnabled="False"
-                                ToolTipService.ToolTip="Mostrar en la carpeta">
-                                <FontIcon FontSize="16" Glyph="&#xE838;" />
-                            </Button>
-                            <Button
-                                AutomationProperties.Name="Descargar de nuevo (ejemplo)"
-                                IsEnabled="False"
-                                ToolTipService.ToolTip="Descargar de nuevo">
-                                <FontIcon FontSize="16" Glyph="&#xE896;" />
-                            </Button>
-                            <Button
-                                AutomationProperties.Name="Quitar del historial (ejemplo)"
-                                IsEnabled="False"
-                                ToolTipService.ToolTip="Quitar del historial">
-                                <FontIcon FontSize="16" Glyph="&#xE74D;" />
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                                    <StackPanel
+                                        Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal"
+                                        Spacing="4">
+                                        <Button
+                                            AutomationProperties.Name="Abrir"
+                                            Command="{x:Bind OpenCommand}"
+                                            IsEnabled="{x:Bind FileExists}"
+                                            ToolTipService.ToolTip="Abrir">
+                                            <FontIcon FontSize="16" Glyph="&#xE8E5;" />
+                                        </Button>
+                                        <Button
+                                            AutomationProperties.Name="Mostrar en la carpeta"
+                                            Command="{x:Bind ShowInFolderCommand}"
+                                            ToolTipService.ToolTip="Mostrar en la carpeta">
+                                            <FontIcon FontSize="16" Glyph="&#xE838;" />
+                                        </Button>
+                                        <Button
+                                            AutomationProperties.Name="Descargar de nuevo"
+                                            Command="{x:Bind RedownloadCommand}"
+                                            ToolTipService.ToolTip="Descargar de nuevo con las mismas opciones">
+                                            <FontIcon FontSize="16" Glyph="&#xE896;" />
+                                        </Button>
+                                        <Button
+                                            AutomationProperties.Name="Quitar del historial"
+                                            Command="{x:Bind RemoveCommand}"
+                                            ToolTipService.ToolTip="Quitar del historial (no borra el archivo)">
+                                            <FontIcon FontSize="16" Glyph="&#xE74D;" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
             </StackPanel>
         </ScrollViewer>
     </Grid>

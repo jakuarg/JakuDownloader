@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.05.00 (en desarrollo)
+**Versión actual:** v00.06.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -72,9 +72,9 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Botón para actualizar yt-dlp desde la app
 
 ### v00.06.00 - Cola de descargas
-- [ ] Varias descargas a la vez, con límite configurable
-- [ ] Pausar, cancelar y reintentar por elemento
-- [ ] Historial de descargas
+- [x] Varias descargas a la vez, con límite configurable
+- [x] Pausar, cancelar y reintentar por elemento
+- [x] Historial de descargas
 
 ### v00.07.00 - Listas y canales
 - [ ] Descargar listas de reproducción completas
@@ -262,6 +262,8 @@ Puntos a tener en cuenta:
 - yt-dlp nunca tiene que ver la carpeta de destino: si encuentra un archivo con el mismo nombre que su intermedio (por ejemplo un video `.webm` al bajar solo el audio de ese video), lo toma como propio y lo borra después de extraer el audio. Por eso el archivo final lo mueve la app, y si el nombre ya existe agrega " (2)".
 - Actualizar la UI desde otros hilos con `DispatcherQueue`.
 - Configuración: `%LOCALAPPDATA%\Jaku Downloader\settings.json`. Solo guarda lo que difiere del valor por defecto.
+- Historial: `%LOCALAPPDATA%\Jaku Downloader\history.json`, hasta 1000 entradas. Guarda las opciones de cada descarga para "Descargar de nuevo". Quitar del historial no borra el archivo.
+- Cola: corre en el hilo de la interfaz y arranca las más viejas primero, hasta el límite de Configuración (3 por defecto). Pausar mata el proceso pero conserva la carpeta de trabajo; al reanudar, yt-dlp retoma desde los `.part`. La cola no se guarda: al cerrar la app se cancela lo pendiente, con confirmación.
 - Herramientas: se buscan primero en `tools\` junto al ejecutable y después en `%LOCALAPPDATA%\Jaku Downloader\tools`. Si la carpeta de la app no admite escritura (por ejemplo en `Program Files`), las que faltan se instalan en la del usuario. La app las baja de los mismos releases que `scripts\get-tools.ps1` y verifica el SHA-256 antes de instalarlas.
 - Actualizar yt-dlp es `yt-dlp -U`; la app compara `--version` antes y después para saber si cambió. No se puede mientras hay una descarga, porque el ejecutable está en uso.
 - Toasts: Windows no muestra los de una app sin empaquetar si no tiene un acceso directo en Inicio con su AppUserModelID. La app crea `Jaku Downloader.lnk` al iniciar y usa el ID `JakuDownloader`. `AppNotificationManager` no sirve para esto: registra su propio ID y los toasts se entregan pero no aparecen.

@@ -24,6 +24,10 @@ public sealed class SettingsService
 
     public string FileNameTemplate => Current.FileNameTemplate ?? Helpers.FileNameTemplate.Default;
 
+    public const int DefaultMaxConcurrentDownloads = 3;
+
+    public int MaxConcurrentDownloads => Math.Clamp(Current.MaxConcurrentDownloads ?? DefaultMaxConcurrentDownloads, 1, 10);
+
     public void Update(Func<AppSettings, AppSettings> change)
     {
         Current = change(Current);

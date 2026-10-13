@@ -19,8 +19,8 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 
-    <!-- v00.05.00 en el formato del README -->
-    <Version>0.5.0</Version>
+    <!-- v00.06.00 en el formato del README -->
+    <Version>0.6.0</Version>
     <Product>Jaku Downloader</Product>
     <AssemblyTitle>Jaku Downloader</AssemblyTitle>
     <Authors>David Jacas Leila</Authors>

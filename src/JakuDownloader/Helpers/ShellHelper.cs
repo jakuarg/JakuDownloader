@@ -19,6 +19,20 @@ public static class ShellHelper
     }
 
     /// <summary>
+    /// Abre el archivo con el programa asociado de Windows.
+    /// </summary>
+    public static bool TryOpenFile(string filePath, [NotNullWhen(false)] out string? error)
+    {
+        if (!File.Exists(filePath))
+        {
+            error = "El archivo ya no está en su carpeta.";
+            return false;
+        }
+
+        return TryRun(() => Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true }), out error);
+    }
+
+    /// <summary>
     /// Abre el Explorador con el archivo seleccionado. Si ya no existe, abre su carpeta.
     /// </summary>
     public static bool TryShowInFolder(string filePath, [NotNullWhen(false)] out string? error)

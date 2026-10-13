@@ -8,47 +8,52 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace JakuDownloader.ViewModels;
 
+/// <summary>
+/// Formulario de la pagina Descargar: link, vista previa y opciones. Las descargas en si las maneja la cola.
+/// </summary>
 public sealed partial class DownloadViewModel : ObservableObject
 {
-    private readonly DownloadService downloadService;
-    private readonly VideoInfoService videoInfoService;
-    private readonly NotificationService notificationService;
-    private readonly ToolLocator toolLocator;
-
-    public DownloadViewModel(
-        DownloadService downloadService,
-        VideoInfoService videoInfoService,
-        NotificationService notificationService,
-        ToolLocator toolLocator,
-        SettingsService settings)
-    {
-        this.downloadService = downloadService;
-        this.videoInfoService = videoInfoService;
-        this.notificationService = notificationService;
-        this.toolLocator = toolLocator;
-
-        // La carpeta se puede cambiar desde Configuracion; la proxima descarga usa la nueva
-        DownloadDirectory = settings.DownloadDirectory;
-        settings.Changed += (_, _) => DownloadDirectory = settings.DownloadDirectory;
-    }
-
-    private const string UnexpectedErrorMessage =
-        "Ocurrió un error inesperado. Podés volver a intentar o copiar los detalles para reportarlo.";
-
     private const string CollectionMessage =
         "Es un link de una lista de reproducción o de un canal. Por ahora se baja de a un video: abrí el video que quieras y pegá su link. Las listas y canales llegan en la v00.07.";
 
     // Espera a que se termine de escribir o pegar el link antes de consultar a yt-dlp
     private static readonly TimeSpan PreviewDelay = TimeSpan.FromMilliseconds(500);
 
-    private CancellationTokenSource? _cancellation;
+    // Valores en el mismo orden que los items de cada ComboBox de la vista
+    private static readonly VideoContainer[] VideoContainers = [VideoContainer.Mp4, VideoContainer.Mkv, VideoContainer.Webm];
+    private static readonly AudioFormat[] AudioFormats = [AudioFormat.Mp3, AudioFormat.M4a, AudioFormat.Opus, AudioFormat.Flac, AudioFormat.Wav];
+    private static readonly int?[] Resolutions = [null, 2160, 1440, 1080, 720, 480, 360];
+    private static readonly VideoCodec[] VideoCodecs = [VideoCodec.Auto, VideoCodec.H264, VideoCodec.Vp9, VideoCodec.Av1];
+    private static readonly AudioCodec[] AudioCodecs = [AudioCodec.Auto, AudioCodec.Aac, AudioCodec.Opus];
+
+    private readonly VideoInfoService _videoInfoService;
+    private readonly ToolLocator _toolLocator;
+
     private CancellationTokenSource? _previewCancellation;
+    private (Uri Url, VideoInfo Info)? _preview;
     private string? _lastFilePath;
-    private DownloadStage? _announcedStage;
+
+    public DownloadViewModel(VideoInfoService videoInfoService, ToolLocator toolLocator, SettingsService settings, DownloadQueueViewModel queue)
+    {
+        _videoInfoService = videoInfoService;
+        _toolLocator = toolLocator;
+        Queue = queue;
+
+        // La carpeta se puede cambiar desde Configuracion; lo proximo que se agregue a la cola usa la nueva
+        DownloadDirectory = settings.DownloadDirectory;
+        settings.Changed += (_, _) => DownloadDirectory = settings.DownloadDirectory;
+
+        queue.ItemCompleted += (_, filePath) =>
+        {
+            _lastFilePath = filePath;
+            ShowResult(InfoBarSeverity.Success, "Descarga completa", Path.GetFileName(filePath), showOpenFolder: true);
+        };
+    }
+
+    public DownloadQueueViewModel Queue { get; }
 
     /// <summary>
     /// Pide a la vista que anuncie un cambio importante a los lectores de pantalla.
-    /// Solo cambios de etapa, nunca cada porcentaje.
     /// </summary>
     public event EventHandler<string>? AnnouncementRequested;
 
@@ -57,27 +62,9 @@ public sealed partial class DownloadViewModel : ObservableObject
     public partial string Url { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyPropertyChangedFor(nameof(AreCodecOptionsEnabled))]
-    [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
-    [NotifyCanExecuteChangedFor(nameof(PasteCommand))]
-    public partial bool IsDownloading { get; set; }
+    public partial string DownloadDirectory { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsCancelling { get; set; }
-
-    [ObservableProperty]
-    public partial double ProgressValue { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsProgressIndeterminate { get; set; }
-
-    [ObservableProperty]
-    public partial string StageText { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string DetailsText { get; set; } = string.Empty;
+    // Resultado: errores al agregar a la cola y la ultima descarga completa
 
     [ObservableProperty]
     public partial bool IsResultOpen { get; set; }
@@ -92,25 +79,9 @@ public sealed partial class DownloadViewModel : ObservableObject
     public partial string ResultMessage { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResultDetails))]
-    public partial string ResultDetails { get; set; } = string.Empty;
+    public partial bool CanOpenResultFolder { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsResultDetailsVisible { get; set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResultAction))]
-    [NotifyPropertyChangedFor(nameof(ResultActionText))]
-    public partial ResultAction ResultAction { get; set; }
-
-    // Valores en el mismo orden que los items de cada ComboBox de la vista
-    private static readonly VideoContainer[] VideoContainers = [VideoContainer.Mp4, VideoContainer.Mkv, VideoContainer.Webm];
-    private static readonly AudioFormat[] AudioFormats = [AudioFormat.Mp3, AudioFormat.M4a, AudioFormat.Opus, AudioFormat.Flac, AudioFormat.Wav];
-    private static readonly int?[] Resolutions = [null, 2160, 1440, 1080, 720, 480, 360];
-    private static readonly VideoCodec[] VideoCodecs = [VideoCodec.Auto, VideoCodec.H264, VideoCodec.Vp9, VideoCodec.Av1];
-    private static readonly AudioCodec[] AudioCodecs = [AudioCodec.Auto, AudioCodec.Aac, AudioCodec.Opus];
-
-    private DownloadOptions? _activeOptions;
+    // Opciones
 
     /// <summary>
     /// 0: video, 1: solo audio. Indice para el ComboBox.
@@ -143,11 +114,24 @@ public sealed partial class DownloadViewModel : ObservableObject
 
     private bool IsWebm => Pick(VideoContainers, VideoFormatIndex) == VideoContainer.Webm;
 
-    public bool AreCodecOptionsEnabled => IsIdle && !IsWebm;
+    public bool AreCodecOptionsEnabled => !IsWebm;
 
     public string CodecsDescription => IsWebm
         ? "WebM siempre usa VP9 y Opus"
         : "Si el video no está en ese códec, se usa el mejor disponible";
+
+    public DownloadOptions CurrentOptions => new(
+        IsAudio ? MediaKind.Audio : MediaKind.Video,
+        Pick(VideoContainers, VideoFormatIndex),
+        Pick(AudioFormats, AudioFormatIndex),
+        Pick(Resolutions, ResolutionIndex),
+        Pick(VideoCodecs, VideoCodecIndex),
+        Pick(AudioCodecs, AudioCodecIndex));
+
+    // Un ComboBox puede informar -1 mientras cambia; se toma la primera opcion
+    private static T Pick<T>(T[] values, int index) => values[Math.Clamp(index, 0, values.Length - 1)];
+
+    // Vista previa
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
@@ -179,41 +163,16 @@ public sealed partial class DownloadViewModel : ObservableObject
 
     public bool IsPreviewFailed => PreviewState == PreviewState.Failed;
 
-    public DownloadOptions CurrentOptions => new(
-        IsAudio ? MediaKind.Audio : MediaKind.Video,
-        Pick(VideoContainers, VideoFormatIndex),
-        Pick(AudioFormats, AudioFormatIndex),
-        Pick(Resolutions, ResolutionIndex),
-        Pick(VideoCodecs, VideoCodecIndex),
-        Pick(AudioCodecs, AudioCodecIndex));
-
-    // Un ComboBox puede informar -1 mientras cambia; se toma la primera opcion
-    private static T Pick<T>(T[] values, int index) => values[Math.Clamp(index, 0, values.Length - 1)];
-
-    public bool IsIdle => !IsDownloading;
-
-    [ObservableProperty]
-    public partial string DownloadDirectory { get; set; }
-
-    public bool HasResultDetails => ResultDetails.Length > 0;
-
-    public bool HasResultAction => ResultAction != ResultAction.None;
-
-    public string ResultActionText => ResultAction switch
-    {
-        ResultAction.OpenFolder => "Abrir carpeta",
-        ResultAction.Retry => "Reintentar",
-        _ => string.Empty,
-    };
-
     // Con un link de lista o canal el boton queda deshabilitado: la vista previa explica por que
     private bool CanDownload()
-        => !IsDownloading
-            && !string.IsNullOrWhiteSpace(Url)
+        => !string.IsNullOrWhiteSpace(Url)
             && !(UrlValidator.TryParse(Url, out var uri) && UrlValidator.IsCollection(uri));
 
+    /// <summary>
+    /// Agrega el link a la cola con las opciones elegidas y deja el formulario listo para el siguiente.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanDownload))]
-    private async Task DownloadAsync()
+    private void Download()
     {
         IsResultOpen = false;
 
@@ -230,7 +189,7 @@ public sealed partial class DownloadViewModel : ObservableObject
             return;
         }
 
-        var missingTools = toolLocator.GetMissingRequired();
+        var missingTools = _toolLocator.GetMissingRequired();
         if (missingTools.Count > 0)
         {
             ShowResult(InfoBarSeverity.Error, "Faltan herramientas",
@@ -239,109 +198,21 @@ public sealed partial class DownloadViewModel : ObservableObject
             return;
         }
 
-        var outputDirectory = DownloadDirectory;
-        _announcedStage = null;
-        IsDownloading = true;
-        ApplyProgress(new DownloadProgress(DownloadStage.FetchingInfo));
-        _cancellation = new CancellationTokenSource();
-
-        try
-        {
-            // Dentro del try: un destino sin permisos o desconectado tiene que terminar en un mensaje
-            Directory.CreateDirectory(outputDirectory);
-            notificationService.Show("Descarga iniciada", $"El archivo se va a guardar en {outputDirectory}", outputDirectory);
-
-            // Progress<T> devuelve los reportes al hilo de la interfaz
-            var progress = new Progress<DownloadProgress>(ApplyProgress);
-            _activeOptions = CurrentOptions;
-            var result = await downloadService.DownloadAsync(uri, outputDirectory, _activeOptions, progress, _cancellation.Token);
-
-            if (result.Success)
-            {
-                var fileName = Path.GetFileName(result.FilePath) ?? string.Empty;
-                _lastFilePath = result.FilePath;
-                ShowResult(InfoBarSeverity.Success, "Descarga completa", fileName, action: ResultAction.OpenFolder);
-                notificationService.Show("Descarga completa", fileName, outputDirectory);
-                Url = string.Empty;
-            }
-            else
-            {
-                ShowResult(InfoBarSeverity.Error, "No se pudo descargar",
-                    result.ErrorMessage ?? UnexpectedErrorMessage,
-                    details: result.ErrorDetails,
-                    showDetails: result.ErrorMessage is null,
-                    action: ResultAction.Retry);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            ShowResult(InfoBarSeverity.Informational, "Descarga cancelada", "Se borraron los archivos parciales.");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            ShowResult(InfoBarSeverity.Error, "No se puede escribir en la carpeta de destino",
-                $"Revisá los permisos de {outputDirectory} y volvé a intentar.",
-                details: ex.Message, action: ResultAction.Retry);
-        }
-        catch (IOException ex)
-        {
-            ShowResult(InfoBarSeverity.Error, "La carpeta de destino no está disponible",
-                "Comprobá que la unidad esté conectada y tenga espacio, y volvé a intentar.",
-                details: ex.Message, action: ResultAction.Retry);
-        }
-        catch (Exception ex)
-        {
-            ShowResult(InfoBarSeverity.Error, "No se pudo descargar", UnexpectedErrorMessage,
-                details: ex.Message, showDetails: true, action: ResultAction.Retry);
-        }
-        finally
-        {
-            _cancellation?.Dispose();
-            _cancellation = null;
-            IsDownloading = false;
-            IsCancelling = false;
-        }
+        // Si la vista previa ya cargo, la cola muestra titulo y miniatura desde el principio
+        var preview = _preview is { } loaded && loaded.Url == uri ? loaded.Info : null;
+        var item = Queue.Enqueue(uri, CurrentOptions, DownloadDirectory, preview);
+        AnnouncementRequested?.Invoke(this, $"Agregado a la cola: {item.Title}");
+        Url = string.Empty;
     }
 
-    [RelayCommand(CanExecute = nameof(IsDownloading))]
-    private void Cancel()
-    {
-        if (IsCancelling) return;
-
-        IsCancelling = true;
-        StageText = "Cancelando...";
-        DetailsText = string.Empty;
-        IsProgressIndeterminate = true;
-        AnnouncementRequested?.Invoke(this, "Cancelando la descarga");
-        _cancellation?.Cancel();
-    }
-
-    /// <summary>
-    /// Cancela la descarga en curso, si hay una, y espera a que termine de limpiar.
-    /// </summary>
-    public async Task CancelAndWaitAsync()
-    {
-        if (IsDownloading) Cancel();
-
-        if (DownloadCommand.ExecutionTask is { } task)
-        {
-            try { await task; }
-            catch (Exception) { }
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
+    [RelayCommand]
     private async Task PasteAsync()
     {
         try
         {
             var content = Clipboard.GetContent();
             if (!content.Contains(StandardDataFormats.Text)) return;
-
-            var text = (await content.GetTextAsync()).Trim();
-
-            // Si mientras se leia el portapapeles empezo una descarga, no se toca el link
-            if (!IsDownloading) Url = text;
+            Url = (await content.GetTextAsync()).Trim();
         }
         catch (Exception)
         {
@@ -351,60 +222,30 @@ public sealed partial class DownloadViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ExecuteResultAction()
+    private void OpenResultFolder()
     {
-        switch (ResultAction)
-        {
-            case ResultAction.OpenFolder:
-                if (_lastFilePath is not null)
-                {
-                    if (!ShellHelper.TryShowInFolder(_lastFilePath, out var error)) ShowFolderError(error);
-                }
-                else
-                {
-                    OpenDownloadFolder();
-                }
-                break;
-
-            case ResultAction.Retry:
-                if (DownloadCommand.CanExecute(null)) DownloadCommand.Execute(null);
-                break;
-        }
+        var opened = _lastFilePath is not null
+            ? ShellHelper.TryShowInFolder(_lastFilePath, out var error)
+            : ShellHelper.TryOpenFolder(DownloadDirectory, out error);
+        if (!opened) ShowResult(InfoBarSeverity.Warning, "No se pudo abrir la carpeta", error!);
     }
 
     [RelayCommand]
     private void OpenDownloadFolder()
     {
-        if (!ShellHelper.TryOpenFolder(DownloadDirectory, out var error)) ShowFolderError(error);
-    }
-
-    [RelayCommand]
-    private void CopyDetails()
-    {
-        try
+        if (!ShellHelper.TryOpenFolder(DownloadDirectory, out var error))
         {
-            var package = new DataPackage();
-            package.SetText(ResultDetails);
-            Clipboard.SetContent(package);
-        }
-        catch (Exception)
-        {
-            // Los detalles siguen visibles y seleccionables en el cartel
-            IsResultDetailsVisible = true;
+            ShowResult(InfoBarSeverity.Warning, "No se pudo abrir la carpeta", error);
         }
     }
 
-    public void CancelDownload()
-    {
-        _cancellation?.Cancel();
-        _previewCancellation?.Cancel();
-    }
+    public void CancelPreview() => _previewCancellation?.Cancel();
 
     partial void OnUrlChanged(string value)
     {
         // Un resultado anterior no corresponde al link nuevo. Si el link se vacio (por ejemplo
-        // despues de una descarga exitosa) el cartel se deja, porque es el resultado de esa descarga
-        if (value.Length > 0 && !IsDownloading) IsResultOpen = false;
+        // al agregarlo a la cola) el cartel se deja
+        if (value.Length > 0) IsResultOpen = false;
 
         RefreshPreview(value);
     }
@@ -412,10 +253,7 @@ public sealed partial class DownloadViewModel : ObservableObject
     /// <summary>
     /// Vuelve a buscar la vista previa del link actual, por ejemplo despues de instalar las herramientas.
     /// </summary>
-    public void ReloadPreview()
-    {
-        if (!IsDownloading) RefreshPreview(Url);
-    }
+    public void ReloadPreview() => RefreshPreview(Url);
 
     /// <summary>
     /// Busca la informacion del video cada vez que cambia el link. Una busqueda nueva cancela la anterior.
@@ -424,6 +262,7 @@ public sealed partial class DownloadViewModel : ObservableObject
     {
         _previewCancellation?.Cancel();
         _previewCancellation = null;
+        _preview = null;
 
         if (!UrlValidator.TryParse(text, out var uri))
         {
@@ -438,7 +277,7 @@ public sealed partial class DownloadViewModel : ObservableObject
             return;
         }
 
-        if (toolLocator.GetMissingRequired().Count > 0)
+        if (_toolLocator.GetMissingRequired().Count > 0)
         {
             PreviewState = PreviewState.None;
             return;
@@ -451,11 +290,12 @@ public sealed partial class DownloadViewModel : ObservableObject
         try
         {
             await Task.Delay(PreviewDelay, cancellation.Token);
-            var result = await videoInfoService.GetInfoAsync(uri, cancellation.Token);
+            var result = await _videoInfoService.GetInfoAsync(uri, cancellation.Token);
             if (cancellation.IsCancellationRequested) return;
 
             if (result.Info is { } info)
             {
+                _preview = (uri, info);
                 ShowPreview(info);
                 AnnouncementRequested?.Invoke(this, $"Video encontrado: {info.Title}");
             }
@@ -499,81 +339,12 @@ public sealed partial class DownloadViewModel : ObservableObject
         PreviewState = PreviewState.Ready;
     }
 
-    private void ApplyProgress(DownloadProgress progress)
-    {
-        // Puede llegar un reporte atrasado despues de terminar o mientras se cancela
-        if (!IsDownloading || IsCancelling) return;
-
-        var stage = progress.Stage switch
-        {
-            DownloadStage.FetchingInfo => "Obteniendo información del video...",
-            DownloadStage.DownloadingVideo => "Descargando video",
-            DownloadStage.DownloadingAudio => "Descargando audio",
-            DownloadStage.Downloading => "Descargando",
-            DownloadStage.Merging => "Uniendo video y audio...",
-            DownloadStage.ConvertingAudio when _activeOptions is { ConvertsAudio: true } options
-                => $"Convirtiendo a {options.Extension.ToUpperInvariant()}...",
-            DownloadStage.ConvertingAudio => "Preparando el audio...",
-            _ => "Procesando...",
-        };
-
-        if (progress.Stage != _announcedStage)
-        {
-            _announcedStage = progress.Stage;
-            AnnouncementRequested?.Invoke(this, stage.TrimEnd('.'));
-        }
-
-        if (progress.Percent is double percent)
-        {
-            IsProgressIndeterminate = false;
-            ProgressValue = percent;
-            StageText = $"{stage} · {percent:0} %";
-        }
-        else
-        {
-            IsProgressIndeterminate = true;
-            StageText = stage;
-        }
-
-        DetailsText = BuildDetails(progress);
-    }
-
-    private static string BuildDetails(DownloadProgress progress)
-    {
-        var parts = new List<string>();
-        if (progress.DownloadedBytes is long done && progress.TotalBytes is long total)
-        {
-            parts.Add($"{Formatters.FormatBytes(done)} de {Formatters.FormatBytes(total)}");
-        }
-        if (progress.BytesPerSecond is double speed)
-        {
-            parts.Add($"{Formatters.FormatBytes(speed)}/s");
-        }
-        if (progress.SecondsRemaining is int seconds && progress.Percent < 100)
-        {
-            parts.Add($"quedan {Formatters.FormatDuration(seconds)}");
-        }
-
-        return string.Join(" · ", parts);
-    }
-
-    private void ShowFolderError(string message)
-        => ShowResult(InfoBarSeverity.Warning, "No se pudo abrir la carpeta", message);
-
-    private void ShowResult(
-        InfoBarSeverity severity,
-        string title,
-        string message,
-        string? details = null,
-        bool showDetails = false,
-        ResultAction action = ResultAction.None)
+    private void ShowResult(InfoBarSeverity severity, string title, string message, bool showOpenFolder = false)
     {
         ResultSeverity = severity;
         ResultTitle = title;
         ResultMessage = message;
-        ResultDetails = details ?? string.Empty;
-        IsResultDetailsVisible = showDetails && !string.IsNullOrEmpty(details);
-        ResultAction = action;
+        CanOpenResultFolder = showOpenFolder;
         IsResultOpen = true;
     }
 }
