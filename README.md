@@ -140,7 +140,7 @@ Para compilar:
 ## Compilar
 
 ```bash
-git clone https://github.com/<usuario>/jaku-downloader.git
+git clone https://github.com/jakuarg/JakuDownloader.git
 ```
 
 1. Bajar las herramientas (una sola vez, o cuando cambien las versiones):
@@ -164,7 +164,7 @@ Los binarios no se suben al repositorio, pero sí van incluidos en la versión p
 ## Estructura del repositorio
 
 ```
-jaku-downloader/
+JakuDownloader/
 ├─ src/
 │  └─ JakuDownloader/
 │     ├─ Models/
