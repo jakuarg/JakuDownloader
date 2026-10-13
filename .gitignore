@@ -1,0 +1,37 @@
+# Compilacion
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+ARM64/
+[Aa]pp[Pp]ackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.appx
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.rsuser
+*.userprefs
+launchSettings.json
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# NuGet
+*.nupkg
+packages/
+
+# Herramientas externas (yt-dlp, FFmpeg, Deno): no se suben al repo
+src/JakuDownloader/tools/*
+!src/JakuDownloader/tools/.gitkeep
+
+# Sistema
+Thumbs.db
+Desktop.ini
