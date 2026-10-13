@@ -4,7 +4,9 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.01.00 (en desarrollo)
+**Versión actual:** v00.02.00 (en desarrollo)
+
+![Jaku Downloader](docs/screenshots/descargar.png)
 
 ---
 
@@ -42,17 +44,17 @@ Facebook, X, Instagram y TikTok. El motor de descarga (yt-dlp) ya los soporta, a
 De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí sola antes de pasar a la siguiente.
 
 ### v00.01.00 - Lo mínimo
-- [ ] Ventana con una caja de texto para el link
-- [ ] Botón "Descargar"
-- [ ] Toast de Windows que avisa dónde se va a guardar el archivo
-- [ ] Descarga en la mejor calidad disponible (mp4) a `Descargas\Jaku Downloader`
-- [ ] yt-dlp y FFmpeg se toman de la carpeta `tools\` junto al ejecutable
+- [x] Ventana con una caja de texto para el link
+- [x] Botón "Descargar"
+- [x] Toast de Windows que avisa dónde se va a guardar el archivo
+- [x] Descarga en la mejor calidad disponible (mp4) a `Descargas\Jaku Downloader`
+- [x] yt-dlp y FFmpeg se toman de la carpeta `tools\` junto al ejecutable
 
 ### v00.02.00 - Feedback básico
-- [ ] Barra de progreso, velocidad y tiempo restante
-- [ ] Botón para cancelar
-- [ ] Mensajes de error legibles (link inválido, video privado, sin conexión)
-- [ ] Toast al terminar, con acceso a la carpeta
+- [x] Barra de progreso, velocidad y tiempo restante
+- [x] Botón para cancelar
+- [x] Mensajes de error legibles (link inválido, video privado, sin conexión)
+- [x] Toast al terminar, con acceso a la carpeta
 
 ### v00.03.00 - Información del video
 - [ ] Vista previa: miniatura, título, canal y duración
@@ -231,7 +233,7 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 | Característica | yt-dlp |
 |---|---|
 | Información del video | `-J` |
-| Mejor calidad | `-f "bv*+ba/b"` |
+| Mejor calidad | `-f "bv*+ba/b" -S "res,fps,vcodec:h264,acodec:aac"` (a igual resolución prefiere H.264 + AAC) |
 | Límite de resolución | `-f "bv*[height<=1080]+ba/b"` |
 | Solo audio a mp3 | `-x --audio-format mp3 --audio-quality 0` |
 | Contenedor de salida | `--merge-output-format mp4` / `--remux-video mkv` |
@@ -243,14 +245,16 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 | Cookies | `--cookies-from-browser <navegador>` / `--cookies <archivo>` |
 | Proxy | `--proxy socks5://host:puerto` |
 | Límite de velocidad | `-r 2M` |
-| Progreso parseable | `--newline --progress-template ...` |
+| Progreso parseable | `--progress --newline --progress-template ...` (`--print` silencia el progreso si no se fuerza con `--progress`) |
+| Archivos intermedios | `-P home:<destino> -P temp:<carpeta temporal>` |
 | Ubicación de herramientas | `--ffmpeg-location`, `--js-runtimes deno:<ruta>` |
 | Actualizar | `-U` |
 
 Puntos a tener en cuenta:
+- La interfaz ya tiene los controles de todo el roadmap. Las funciones que faltan se muestran deshabilitadas con un distintivo "Próximamente · vXX.ZZ"; al implementar una versión se pone en `true` su interruptor en `Helpers/Features.cs` y los controles se habilitan solos.
 - Lanzar procesos con `ProcessStartInfo.ArgumentList` para no romper rutas con espacios.
 - Forzar UTF-8 en la salida (`--encoding utf-8`) para títulos con acentos o emojis.
-- Cancelar matando el árbol de procesos y borrando los archivos `.part`.
+- Cancelar matando el árbol de procesos. Los archivos intermedios van a una carpeta oculta `.jaku-temp\<id>` dentro del destino (mismo disco, así mover el archivo final es instantáneo); al cancelar o fallar se borra esa carpeta.
 - Actualizar la UI desde otros hilos con `DispatcherQueue`.
 - Toasts: Windows no muestra los de una app sin empaquetar si no tiene un acceso directo en Inicio con su AppUserModelID. La app crea `Jaku Downloader.lnk` al iniciar y usa el ID `JakuDownloader`. `AppNotificationManager` no sirve para esto: registra su propio ID y los toasts se entregan pero no aparecen.
 - YouTube cambia seguido. Casi todos los errores raros ("confirm you're not a bot", formatos faltantes) se arreglan actualizando yt-dlp.
