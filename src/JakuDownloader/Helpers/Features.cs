@@ -10,7 +10,7 @@ public static class Features
     public static bool VideoInfo => true;
 
     /// <summary>v00.04.00: resolucion, formato de salida y codecs.</summary>
-    public static bool QualityAndFormats => false;
+    public static bool QualityAndFormats => true;
 
     /// <summary>v00.05.00: carpeta de destino, plantilla de nombre y gestion de herramientas.</summary>
     public static bool Settings => false;

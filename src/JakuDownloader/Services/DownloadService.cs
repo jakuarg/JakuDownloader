@@ -12,16 +12,18 @@ public sealed class DownloadService(YtDlpRunner runner)
     private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(150);
 
     /// <summary>
-    /// Descarga el video como mp4 en la mejor calidad disponible, o solo el audio como mp3.
+    /// Descarga el video o solo el audio con las opciones elegidas.
     /// </summary>
     /// <remarks>
-    /// Los archivos intermedios van a una carpeta temporal propia de cada descarga,
-    /// asi al cancelar o fallar alcanza con borrarla.
+    /// yt-dlp trabaja solo dentro de una carpeta temporal propia de cada descarga y despues la app
+    /// mueve el archivo final al destino. Asi yt-dlp nunca ve los archivos que ya estan en el destino:
+    /// si viera un video con el mismo nombre que su archivo intermedio, lo tomaria como propio y lo
+    /// borraria despues de extraer el audio. Al cancelar o fallar alcanza con borrar la carpeta temporal.
     /// </remarks>
     public async Task<DownloadResult> DownloadAsync(
         Uri url,
         string outputDirectory,
-        MediaKind kind,
+        DownloadOptions options,
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -31,7 +33,10 @@ public sealed class DownloadService(YtDlpRunner runner)
 
         try
         {
-            return await RunYtDlpAsync(BuildArguments(url, outputDirectory, tempDirectory, kind), progress, cancellationToken);
+            var result = await RunYtDlpAsync(BuildArguments(url, tempDirectory, options), progress, cancellationToken);
+            if (!result.Success || result.FilePath is null) return result;
+
+            return DownloadResult.Completed(MoveToDestination(result.FilePath, outputDirectory));
         }
         finally
         {
@@ -90,36 +95,36 @@ public sealed class DownloadService(YtDlpRunner runner)
         return DownloadResult.Completed(filePath);
     }
 
-    private static IEnumerable<string> BuildArguments(Uri url, string outputDirectory, string tempDirectory, MediaKind kind)
+    /// <summary>
+    /// Mueve el archivo terminado al destino sin pisar nada: si el nombre ya existe, agrega " (2)", " (3)"...
+    /// </summary>
+    private static string MoveToDestination(string sourcePath, string outputDirectory)
+    {
+        var name = Path.GetFileNameWithoutExtension(sourcePath);
+        var extension = Path.GetExtension(sourcePath);
+        var destination = Path.Combine(outputDirectory, name + extension);
+
+        for (var copy = 2; File.Exists(destination); copy++)
+        {
+            destination = Path.Combine(outputDirectory, $"{name} ({copy}){extension}");
+        }
+
+        // La carpeta temporal esta dentro del destino: es el mismo disco y el movimiento es instantaneo
+        File.Move(sourcePath, destination);
+        return destination;
+    }
+
+    private static IEnumerable<string> BuildArguments(Uri url, string workDirectory, DownloadOptions options)
     {
         yield return "--no-mtime";
 
-        if (kind == MediaKind.Audio)
+        foreach (var argument in FormatSelection.BuildArguments(options))
         {
-            // Mejor audio disponible convertido a mp3 en la calidad mas alta (VBR 0)
-            yield return "-f";
-            yield return "ba/b";
-            yield return "-x";
-            yield return "--audio-format";
-            yield return "mp3";
-            yield return "--audio-quality";
-            yield return "0";
-        }
-        else
-        {
-            // Mejor resolucion; a igual resolucion, H.264 + AAC para que el mp4 se reproduzca en cualquier lado
-            yield return "-f";
-            yield return "bv*+ba/b";
-            yield return "-S";
-            yield return "res,fps,vcodec:h264,acodec:aac";
-            yield return "--merge-output-format";
-            yield return "mp4";
+            yield return argument;
         }
 
         yield return "-P";
-        yield return $"home:{outputDirectory}";
-        yield return "-P";
-        yield return $"temp:{tempDirectory}";
+        yield return workDirectory;
         yield return "-o";
         yield return OutputTemplate;
 

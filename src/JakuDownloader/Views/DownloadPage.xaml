@@ -211,10 +211,10 @@
                     </Grid>
                 </Border>
 
-                <!--  Tipo de descarga  -->
+                <!--  Opciones de la descarga  -->
                 <toolkit:SettingsCard
                     Margin="0,8,0,0"
-                    Description="Video con audio en MP4, o solo el audio en MP3"
+                    Description="Video con audio, o solo el audio"
                     Header="Tipo de descarga">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE8B2;" />
@@ -224,10 +224,96 @@
                         AutomationProperties.Name="Tipo de descarga"
                         IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                         SelectedIndex="{x:Bind ViewModel.MediaKindIndex, Mode=TwoWay}">
-                        <x:String>Video (MP4)</x:String>
-                        <x:String>Solo audio (MP3)</x:String>
+                        <x:String>Video</x:String>
+                        <x:String>Solo audio</x:String>
                     </ComboBox>
                 </toolkit:SettingsCard>
+
+                <toolkit:SettingsCard Description="Tipo de archivo que se guarda" Header="Formato">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7C3;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <Grid>
+                        <ComboBox
+                            MinWidth="{StaticResource OptionWidth}"
+                            AutomationProperties.Name="Formato de video"
+                            IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
+                            SelectedIndex="{x:Bind ViewModel.VideoFormatIndex, Mode=TwoWay}"
+                            Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                            <x:String>MP4 (se reproduce en todos lados)</x:String>
+                            <x:String>MKV (admite cualquier códec)</x:String>
+                            <x:String>WebM (VP9 + Opus)</x:String>
+                        </ComboBox>
+                        <ComboBox
+                            MinWidth="{StaticResource OptionWidth}"
+                            AutomationProperties.Name="Formato de audio"
+                            IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
+                            SelectedIndex="{x:Bind ViewModel.AudioFormatIndex, Mode=TwoWay}"
+                            Visibility="{x:Bind ViewModel.IsAudio, Mode=OneWay}">
+                            <x:String>MP3</x:String>
+                            <x:String>M4A (AAC original, sin recomprimir)</x:String>
+                            <x:String>Opus (original, sin recomprimir)</x:String>
+                            <x:String>FLAC (sin pérdida)</x:String>
+                            <x:String>WAV (sin comprimir)</x:String>
+                        </ComboBox>
+                    </Grid>
+                </toolkit:SettingsCard>
+
+                <toolkit:SettingsCard
+                    Description="Resolución máxima del video"
+                    Header="Calidad"
+                    Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7F4;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ComboBox
+                        MinWidth="{StaticResource OptionWidth}"
+                        AutomationProperties.Name="Calidad"
+                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
+                        SelectedIndex="{x:Bind ViewModel.ResolutionIndex, Mode=TwoWay}">
+                        <x:String>La mejor disponible</x:String>
+                        <x:String>Hasta 2160p (4K)</x:String>
+                        <x:String>Hasta 1440p (2K)</x:String>
+                        <x:String>Hasta 1080p (Full HD)</x:String>
+                        <x:String>Hasta 720p (HD)</x:String>
+                        <x:String>Hasta 480p</x:String>
+                        <x:String>Hasta 360p</x:String>
+                    </ComboBox>
+                </toolkit:SettingsCard>
+
+                <toolkit:SettingsExpander
+                    Description="{x:Bind ViewModel.CodecsDescription, Mode=OneWay}"
+                    Header="Códecs"
+                    Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE9E9;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard Description="Automático elige H.264 cuando la resolución lo permite" Header="Códec de video">
+                            <ComboBox
+                                MinWidth="{StaticResource OptionWidth}"
+                                AutomationProperties.Name="Códec de video"
+                                IsEnabled="{x:Bind ViewModel.AreCodecOptionsEnabled, Mode=OneWay}"
+                                SelectedIndex="{x:Bind ViewModel.VideoCodecIndex, Mode=TwoWay}">
+                                <x:String>Automático</x:String>
+                                <x:String>H.264 (AVC)</x:String>
+                                <x:String>VP9</x:String>
+                                <x:String>AV1</x:String>
+                            </ComboBox>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Description="Automático elige AAC" Header="Códec de audio">
+                            <ComboBox
+                                MinWidth="{StaticResource OptionWidth}"
+                                AutomationProperties.Name="Códec de audio"
+                                IsEnabled="{x:Bind ViewModel.AreCodecOptionsEnabled, Mode=OneWay}"
+                                SelectedIndex="{x:Bind ViewModel.AudioCodecIndex, Mode=TwoWay}">
+                                <x:String>Automático</x:String>
+                                <x:String>AAC</x:String>
+                                <x:String>Opus</x:String>
+                            </ComboBox>
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
 
                 <!--  Progreso  -->
                 <StackPanel
@@ -309,100 +395,15 @@
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Calidad, formato, códecs, listas, subtítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
+                                Text="Listas y canales, subtítulos, capítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
                                 TextWrapping="Wrap" />
                         </StackPanel>
                     </Expander.Header>
 
                     <StackPanel Spacing="4">
 
-                        <!--  Opciones  -->
-                        <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
-                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Opciones" />
-                        </StackPanel>
-
-                        <toolkit:SettingsCard Description="Resolución máxima del video" Header="Calidad">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE7F4;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.QualityAndFormats}" Version="v00.04" />
-                                <ComboBox
-                                    MinWidth="{StaticResource OptionWidth}"
-                                    AutomationProperties.Name="Calidad"
-                                    IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
-                                    SelectedIndex="0">
-                                    <x:String>La mejor disponible</x:String>
-                                    <x:String>2160p (4K)</x:String>
-                                    <x:String>1440p (2K)</x:String>
-                                    <x:String>1080p (Full HD)</x:String>
-                                    <x:String>720p (HD)</x:String>
-                                    <x:String>480p</x:String>
-                                    <x:String>360p</x:String>
-                                </ComboBox>
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-
-                        <toolkit:SettingsCard Description="Tipo de archivo que se guarda" Header="Formato">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE7C3;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.QualityAndFormats}" Version="v00.04" />
-                                <ComboBox
-                                    MinWidth="{StaticResource OptionWidth}"
-                                    AutomationProperties.Name="Formato"
-                                    IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
-                                    SelectedIndex="0">
-                                    <x:String>MP4 (video)</x:String>
-                                    <x:String>MKV (video)</x:String>
-                                    <x:String>WebM (video)</x:String>
-                                    <x:String>MP3 (audio)</x:String>
-                                    <x:String>M4A (audio)</x:String>
-                                    <x:String>Opus (audio)</x:String>
-                                    <x:String>FLAC (audio sin pérdida)</x:String>
-                                    <x:String>WAV (audio sin comprimir)</x:String>
-                                </ComboBox>
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-
-                        <toolkit:SettingsExpander Description="Para elegir a mano cómo se comprime el video y el audio" Header="Códecs">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE9E9;" />
-                            </toolkit:SettingsExpander.HeaderIcon>
-                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.QualityAndFormats}" Version="v00.04" />
-                            <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard Description="Automático elige H.264 cuando la resolución lo permite" Header="Códec de video">
-                                    <ComboBox
-                                        MinWidth="{StaticResource OptionWidth}"
-                                        AutomationProperties.Name="Códec de video"
-                                        IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
-                                        SelectedIndex="0">
-                                        <x:String>Automático</x:String>
-                                        <x:String>H.264 (AVC)</x:String>
-                                        <x:String>H.265 (HEVC)</x:String>
-                                        <x:String>VP9</x:String>
-                                        <x:String>AV1</x:String>
-                                    </ComboBox>
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard Header="Códec de audio">
-                                    <ComboBox
-                                        MinWidth="{StaticResource OptionWidth}"
-                                        AutomationProperties.Name="Códec de audio"
-                                        IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
-                                        SelectedIndex="0">
-                                        <x:String>Automático</x:String>
-                                        <x:String>AAC</x:String>
-                                        <x:String>Opus</x:String>
-                                        <x:String>MP3</x:String>
-                                        <x:String>FLAC</x:String>
-                                    </ComboBox>
-                                </toolkit:SettingsCard>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
-
                         <!--  Extras  -->
-                        <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                        <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
                             <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Extras" />
                         </StackPanel>
 

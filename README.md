@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.03.00 (en desarrollo)
+**Versión actual:** v00.04.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -62,9 +62,9 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Audio a mp3
 
 ### v00.04.00 - Calidad y formatos
-- [ ] Selector de resolución
-- [ ] Selector de formato de salida (mp4, mkv, webm, mp3, m4a, opus, flac, wav)
-- [ ] Selección de códecs de video y audio
+- [x] Selector de resolución
+- [x] Selector de formato de salida (mp4, mkv, webm, mp3, m4a, opus, flac, wav)
+- [x] Selección de códecs de video y audio
 
 ### v00.05.00 - Ajustes y herramientas
 - [ ] Página de ajustes: carpeta de destino y plantilla de nombre de archivo
@@ -234,7 +234,11 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 |---|---|
 | Información del video | `--skip-download -O "%(.{id,title,channel,duration,thumbnail,live_status})j"` (solo esos campos; `-J` trae cientos de KB) |
 | Mejor calidad | `-f "bv*+ba/b" -S "res,fps,vcodec:h264,acodec:aac"` (a igual resolución prefiere H.264 + AAC) |
-| Límite de resolución | `-f "bv*[height<=1080]+ba/b"` |
+| Límite de resolución | `-S "res:1080,..."` (la mejor hasta ese alto; si no hay, la más baja disponible) |
+| Códec de video | `-f "bv*[vcodec~='^vp0?9']+ba/bv*+ba/b"` (si no está en ese códec, cae al mejor) |
+| Códec de audio | `-S "...,acodec:opus"` o `acodec:aac` |
+| WebM | `-f "bv*[ext=webm]+ba[ext=webm]/b[ext=webm]/bv*+ba/b"` (VP9 + Opus) |
+| Solo audio sin recomprimir | `-f "ba[ext=m4a]/ba/b"` para M4A, `-f "ba[acodec=opus]/ba/b"` para Opus |
 | Solo audio a mp3 | `-x --audio-format mp3 --audio-quality 0` |
 | Contenedor de salida | `--merge-output-format mp4` / `--remux-video mkv` |
 | Listas y canales | `--yes-playlist`, `--playlist-items` (con links `/playlist`, `/@canal`, etc. yt-dlp ignora `--no-playlist`: la app los detecta antes) |
@@ -246,7 +250,7 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 | Proxy | `--proxy socks5://host:puerto` |
 | Límite de velocidad | `-r 2M` |
 | Progreso parseable | `--progress --newline --progress-template ...` (`--print` silencia el progreso si no se fuerza con `--progress`) |
-| Archivos intermedios | `-P home:<destino> -P temp:<carpeta temporal>` |
+| Archivos intermedios | `-P <carpeta temporal>`: yt-dlp trabaja solo ahí y la app mueve el archivo final al destino |
 | Ubicación de herramientas | `--ffmpeg-location`, `--js-runtimes deno:<ruta>` |
 | Actualizar | `-U` |
 
@@ -254,7 +258,8 @@ Puntos a tener en cuenta:
 - La interfaz ya tiene los controles de todo el roadmap. Las funciones que faltan se muestran deshabilitadas con un distintivo "Próximamente · vXX.ZZ"; al implementar una versión se pone en `true` su interruptor en `Helpers/Features.cs` y los controles se habilitan solos.
 - Lanzar procesos con `ProcessStartInfo.ArgumentList` para no romper rutas con espacios.
 - Forzar UTF-8 en la salida (`--encoding utf-8`) para títulos con acentos o emojis.
-- Cancelar matando el árbol de procesos. Los archivos intermedios van a una carpeta oculta `.jaku-temp\<id>` dentro del destino (mismo disco, así mover el archivo final es instantáneo); al cancelar o fallar se borra esa carpeta.
+- Cancelar matando el árbol de procesos. yt-dlp trabaja solo en una carpeta oculta `.jaku-temp\<id>` dentro del destino (mismo disco, así mover el archivo final es instantáneo); al cancelar o fallar se borra esa carpeta.
+- yt-dlp nunca tiene que ver la carpeta de destino: si encuentra un archivo con el mismo nombre que su intermedio (por ejemplo un video `.webm` al bajar solo el audio de ese video), lo toma como propio y lo borra después de extraer el audio. Por eso el archivo final lo mueve la app, y si el nombre ya existe agrega " (2)".
 - Actualizar la UI desde otros hilos con `DispatcherQueue`.
 - Toasts: Windows no muestra los de una app sin empaquetar si no tiene un acceso directo en Inicio con su AppUserModelID. La app crea `Jaku Downloader.lnk` al iniciar y usa el ID `JakuDownloader`. `AppNotificationManager` no sirve para esto: registra su propio ID y los toasts se entregan pero no aparecen.
 - YouTube cambia seguido. Casi todos los errores raros ("confirm you're not a bot", formatos faltantes) se arreglan actualizando yt-dlp.

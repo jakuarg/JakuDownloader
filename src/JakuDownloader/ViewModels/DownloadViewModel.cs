@@ -40,6 +40,7 @@ public sealed partial class DownloadViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
+    [NotifyPropertyChangedFor(nameof(AreCodecOptionsEnabled))]
     [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteCommand))]
@@ -84,11 +85,51 @@ public sealed partial class DownloadViewModel(
     [NotifyPropertyChangedFor(nameof(ResultActionText))]
     public partial ResultAction ResultAction { get; set; }
 
+    // Valores en el mismo orden que los items de cada ComboBox de la vista
+    private static readonly VideoContainer[] VideoContainers = [VideoContainer.Mp4, VideoContainer.Mkv, VideoContainer.Webm];
+    private static readonly AudioFormat[] AudioFormats = [AudioFormat.Mp3, AudioFormat.M4a, AudioFormat.Opus, AudioFormat.Flac, AudioFormat.Wav];
+    private static readonly int?[] Resolutions = [null, 2160, 1440, 1080, 720, 480, 360];
+    private static readonly VideoCodec[] VideoCodecs = [VideoCodec.Auto, VideoCodec.H264, VideoCodec.Vp9, VideoCodec.Av1];
+    private static readonly AudioCodec[] AudioCodecs = [AudioCodec.Auto, AudioCodec.Aac, AudioCodec.Opus];
+
+    private DownloadOptions? _activeOptions;
+
     /// <summary>
-    /// 0: video (mp4), 1: solo audio (mp3). Indice para el ComboBox.
+    /// 0: video, 1: solo audio. Indice para el ComboBox.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsVideo))]
+    [NotifyPropertyChangedFor(nameof(IsAudio))]
     public partial int MediaKindIndex { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AreCodecOptionsEnabled))]
+    [NotifyPropertyChangedFor(nameof(CodecsDescription))]
+    public partial int VideoFormatIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int AudioFormatIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int ResolutionIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int VideoCodecIndex { get; set; }
+
+    [ObservableProperty]
+    public partial int AudioCodecIndex { get; set; }
+
+    public bool IsVideo => MediaKindIndex == 0;
+
+    public bool IsAudio => !IsVideo;
+
+    private bool IsWebm => Pick(VideoContainers, VideoFormatIndex) == VideoContainer.Webm;
+
+    public bool AreCodecOptionsEnabled => IsIdle && !IsWebm;
+
+    public string CodecsDescription => IsWebm
+        ? "WebM siempre usa VP9 y Opus"
+        : "Si el video no está en ese códec, se usa el mejor disponible";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPreviewVisible))]
@@ -120,7 +161,16 @@ public sealed partial class DownloadViewModel(
 
     public bool IsPreviewFailed => PreviewState == PreviewState.Failed;
 
-    public MediaKind MediaKind => MediaKindIndex == 1 ? MediaKind.Audio : MediaKind.Video;
+    public DownloadOptions CurrentOptions => new(
+        IsAudio ? MediaKind.Audio : MediaKind.Video,
+        Pick(VideoContainers, VideoFormatIndex),
+        Pick(AudioFormats, AudioFormatIndex),
+        Pick(Resolutions, ResolutionIndex),
+        Pick(VideoCodecs, VideoCodecIndex),
+        Pick(AudioCodecs, AudioCodecIndex));
+
+    // Un ComboBox puede informar -1 mientras cambia; se toma la primera opcion
+    private static T Pick<T>(T[] values, int index) => values[Math.Clamp(index, 0, values.Length - 1)];
 
     public bool IsIdle => !IsDownloading;
 
@@ -186,7 +236,8 @@ public sealed partial class DownloadViewModel(
 
             // Progress<T> devuelve los reportes al hilo de la interfaz
             var progress = new Progress<DownloadProgress>(ApplyProgress);
-            var result = await downloadService.DownloadAsync(uri, outputDirectory, MediaKind, progress, _cancellation.Token);
+            _activeOptions = CurrentOptions;
+            var result = await downloadService.DownloadAsync(uri, outputDirectory, _activeOptions, progress, _cancellation.Token);
 
             if (result.Success)
             {
@@ -439,7 +490,9 @@ public sealed partial class DownloadViewModel(
             DownloadStage.DownloadingAudio => "Descargando audio",
             DownloadStage.Downloading => "Descargando",
             DownloadStage.Merging => "Uniendo video y audio...",
-            DownloadStage.ConvertingAudio => "Convirtiendo a mp3...",
+            DownloadStage.ConvertingAudio when _activeOptions is { ConvertsAudio: true } options
+                => $"Convirtiendo a {options.Extension.ToUpperInvariant()}...",
+            DownloadStage.ConvertingAudio => "Preparando el audio...",
             _ => "Procesando...",
         };
 
