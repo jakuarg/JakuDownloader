@@ -24,6 +24,7 @@
                         <Setter Target="UrlActions.(Grid.Column)" Value="0" />
                         <Setter Target="UrlActions.HorizontalAlignment" Value="Right" />
                         <Setter Target="PreviewThumbnail.Visibility" Value="Collapsed" />
+                        <Setter Target="PlaylistThumbnail.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="Wide">
@@ -206,7 +207,7 @@
                             <TextBlock
                                 VerticalAlignment="Center"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="Buscando información del video..." />
+                                Text="{x:Bind ViewModel.PreviewLoadingText, Mode=OneWay}" />
                         </StackPanel>
 
                         <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.IsPreviewFailed, Mode=OneWay}">
@@ -224,7 +225,7 @@
                                 TextWrapping="Wrap" />
                         </Grid>
 
-                        <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.IsPreviewReady, Mode=OneWay}">
+                        <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.IsVideoPreviewReady, Mode=OneWay}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
@@ -268,8 +269,87 @@
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
+
+                        <!--  Lista o canal: datos, cuantos videos se eligieron y donde se guardan  -->
+                        <Grid ColumnSpacing="16" Visibility="{x:Bind ViewModel.IsPlaylistPreviewReady, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border
+                                x:Name="PlaylistThumbnail"
+                                Width="192"
+                                Height="108"
+                                VerticalAlignment="Top"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="{StaticResource ControlCornerRadius}">
+                                <Grid>
+                                    <Border CornerRadius="{StaticResource ControlCornerRadius}">
+                                        <Border.Background>
+                                            <ImageBrush ImageSource="{x:Bind local:BindingFunctions.ToThumbnail(ViewModel.PlaylistThumbnailUrl), Mode=OneWay}" Stretch="UniformToFill" />
+                                        </Border.Background>
+                                    </Border>
+                                    <Border
+                                        Padding="6,2"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Bottom"
+                                        Background="{ThemeResource SmokeFillColorDefaultBrush}"
+                                        CornerRadius="{StaticResource ControlCornerRadius}">
+                                        <FontIcon
+                                            FontSize="14"
+                                            Foreground="White"
+                                            Glyph="&#xE90B;" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <StackPanel Grid.Column="1" Spacing="6">
+                                <TextBlock
+                                    MaxLines="2"
+                                    Style="{StaticResource SubtitleTextBlockStyle}"
+                                    Text="{x:Bind ViewModel.PlaylistTitle, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind ViewModel.PlaylistSubtitle, Mode=OneWay}"
+                                    TextWrapping="Wrap" />
+                                <StackPanel
+                                    Margin="0,4,0,0"
+                                    Orientation="Horizontal"
+                                    Spacing="12">
+                                    <TextBlock VerticalAlignment="Center" Text="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}" />
+                                    <Button Click="ChooseVideos_Click" Content="Elegir videos..." />
+                                </StackPanel>
+                                <ToggleSwitch
+                                    Header="Guardar en una carpeta con el nombre de la lista"
+                                    IsOn="{x:Bind ViewModel.SaveInPlaylistFolder, Mode=TwoWay}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind ViewModel.PlaylistFolderHint, Mode=OneWay}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
+
+                <!--  Video abierto desde una lista: elegir si se baja solo o con toda la lista  -->
+                <toolkit:SettingsCard
+                    Margin="0,8,0,0"
+                    Description="Por defecto se baja solo este video"
+                    Header="Este video es parte de una lista"
+                    Visibility="{x:Bind ViewModel.IsVideoInPlaylist, Mode=OneWay}">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE90B;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ToggleSwitch
+                        AutomationProperties.Name="Bajar la lista completa"
+                        IsOn="{x:Bind ViewModel.DownloadWholePlaylist, Mode=TwoWay}"
+                        OffContent="Solo este video"
+                        OnContent="Bajar la lista completa" />
+                </toolkit:SettingsCard>
 
                 <!--  Opciones de la descarga  -->
                 <toolkit:SettingsCard
@@ -386,7 +466,7 @@
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Listas y canales, subtítulos, capítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
+                                Text="Subtítulos, capítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
                                 TextWrapping="Wrap" />
                         </StackPanel>
                     </Expander.Header>
@@ -397,21 +477,6 @@
                         <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
                             <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Extras" />
                         </StackPanel>
-
-                        <toolkit:SettingsExpander Description="Cuando el link es de una lista o de un canal" Header="Listas de reproducción y canales">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE90B;" />
-                            </toolkit:SettingsExpander.HeaderIcon>
-                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Playlists}" Version="v00.07" />
-                            <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard Description="Si está apagado, se baja solo el video del link" Header="Descargar la lista completa">
-                                    <ToggleSwitch AutomationProperties.Name="Descargar la lista completa" IsEnabled="{x:Bind helpers:Features.Playlists}" />
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard Description="Marcar qué videos de la lista o del canal bajar" Header="Elegir videos">
-                                    <Button Content="Elegir..." IsEnabled="{x:Bind helpers:Features.Playlists}" />
-                                </toolkit:SettingsCard>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
 
                         <toolkit:SettingsExpander Description="Subtítulos, capítulos, miniatura y metadatos dentro del archivo" Header="Subtítulos y capítulos">
                             <toolkit:SettingsExpander.HeaderIcon>
@@ -479,5 +544,64 @@
                 </Expander>
             </StackPanel>
         </ScrollViewer>
+
+        <!--  Elegir que videos de la lista bajar  -->
+        <ContentDialog
+            x:Name="ChooseVideosDialog"
+            CloseButtonText="Listo"
+            DefaultButton="Close"
+            Title="Elegir videos">
+            <Grid Width="520" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center" Text="{x:Bind ViewModel.SelectionSummary, Mode=OneWay}" />
+                    <Button
+                        Grid.Column="1"
+                        Command="{x:Bind ViewModel.SelectAllEntriesCommand}"
+                        Content="Todos" />
+                    <Button
+                        Grid.Column="2"
+                        Command="{x:Bind ViewModel.SelectNoEntriesCommand}"
+                        Content="Ninguno" />
+                </Grid>
+                <ListView
+                    Grid.Row="1"
+                    Height="420"
+                    AutomationProperties.Name="Videos de la lista"
+                    ItemsSource="{x:Bind ViewModel.PlaylistEntries}"
+                    SelectionMode="None">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlaylistEntryViewModel">
+                            <CheckBox
+                                Padding="8,4,0,4"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                AutomationProperties.Name="{x:Bind Title}"
+                                IsChecked="{x:Bind IsSelected, Mode=TwoWay}">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind DurationText}" />
+                                </Grid>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </ContentDialog>
     </Grid>
 </Page>

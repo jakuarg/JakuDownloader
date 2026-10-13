@@ -19,7 +19,7 @@ public static class Features
     public static bool Queue => true;
 
     /// <summary>v00.07.00: listas de reproduccion y canales.</summary>
-    public static bool Playlists => false;
+    public static bool Playlists => true;
 
     /// <summary>v00.08.00: subtitulos, capitulos, miniatura y metadatos.</summary>
     public static bool Subtitles => false;

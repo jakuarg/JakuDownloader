@@ -38,6 +38,12 @@ public sealed partial class DownloadPage : Page
         }
     }
 
+    private async void ChooseVideos_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        ChooseVideosDialog.XamlRoot = XamlRoot;
+        await ChooseVideosDialog.ShowAsync();
+    }
+
     private void OnAnnouncementRequested(object? sender, string message)
     {
         var peer = FrameworkElementAutomationPeer.FromElement(UrlBox)

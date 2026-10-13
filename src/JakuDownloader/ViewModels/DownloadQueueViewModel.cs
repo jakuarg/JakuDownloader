@@ -114,7 +114,7 @@ public sealed partial class DownloadQueueViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanResumeAll))]
     private void ResumeAll()
     {
-        foreach (var item in Items.Where(item => item.CanResume).OrderBy(item => item.EnqueuedAt).ToList()) item.Requeue(moveToBack: false);
+        foreach (var item in Items.Where(item => item.CanResume).OrderBy(item => item.Sequence).ToList()) item.Requeue(moveToBack: false);
         StartNext();
     }
 
@@ -247,7 +247,7 @@ public sealed partial class DownloadQueueViewModel : ObservableObject
         var limit = _settings.MaxConcurrentDownloads;
         while (Items.Count(item => item.Status == DownloadStatus.Downloading) < limit)
         {
-            var next = Items.Where(item => item.Status == DownloadStatus.Queued).OrderBy(item => item.EnqueuedAt).FirstOrDefault();
+            var next = Items.Where(item => item.Status == DownloadStatus.Queued).OrderBy(item => item.Sequence).FirstOrDefault();
             if (next is null) break;
             _running[next] = RunAsync(next);
         }

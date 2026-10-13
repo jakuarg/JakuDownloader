@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.06.00 (en desarrollo)
+**Versión actual:** v00.07.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -77,9 +77,9 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Historial de descargas
 
 ### v00.07.00 - Listas y canales
-- [ ] Descargar listas de reproducción completas
-- [ ] Descargar canales
-- [ ] Elegir qué elementos de la lista bajar
+- [x] Descargar listas de reproducción completas
+- [x] Descargar canales
+- [x] Elegir qué elementos de la lista bajar
 
 ### v00.08.00 - Subtítulos y capítulos
 - [ ] Descargar subtítulos por idioma
@@ -241,7 +241,7 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 | Solo audio sin recomprimir | `-f "ba[ext=m4a]/ba/b"` para M4A, `-f "ba[acodec=opus]/ba/b"` para Opus |
 | Solo audio a mp3 | `-x --audio-format mp3 --audio-quality 0` |
 | Contenedor de salida | `--merge-output-format mp4` / `--remux-video mkv` |
-| Listas y canales | `--yes-playlist`, `--playlist-items` (con links `/playlist`, `/@canal`, etc. yt-dlp ignora `--no-playlist`: la app los detecta antes) |
+| Listas y canales | `--flat-playlist --yes-playlist -I 1:500 -J` para listar sin entrar a cada video; después cada video elegido va a la cola como una descarga normal |
 | Subtítulos | `--write-subs --sub-langs es,en --embed-subs` |
 | Capítulos | `--embed-chapters` |
 | Miniatura y metadatos | `--embed-thumbnail --embed-metadata` |
@@ -262,6 +262,7 @@ Puntos a tener en cuenta:
 - yt-dlp nunca tiene que ver la carpeta de destino: si encuentra un archivo con el mismo nombre que su intermedio (por ejemplo un video `.webm` al bajar solo el audio de ese video), lo toma como propio y lo borra después de extraer el audio. Por eso el archivo final lo mueve la app, y si el nombre ya existe agrega " (2)".
 - Actualizar la UI desde otros hilos con `DispatcherQueue`.
 - Configuración: `%LOCALAPPDATA%\Jaku Downloader\settings.json`. Solo guarda lo que difiere del valor por defecto.
+- Listas y canales: la raíz de un canal (`/@canal`) devuelve sus pestañas, no sus videos, así que se pide `/@canal/videos`. Se cargan como máximo 500 videos (unos 5 s; un canal grande completo tarda minutos). Un video abierto desde una lista (`watch?v=…&list=…` o `youtu.be/…?list=…`) se baja solo, salvo que se active "Bajar la lista completa". Los videos de una lista se guardan por defecto en una subcarpeta con su nombre.
 - Historial: `%LOCALAPPDATA%\Jaku Downloader\history.json`, hasta 1000 entradas. Guarda las opciones de cada descarga para "Descargar de nuevo". Quitar del historial no borra el archivo.
 - Cola: corre en el hilo de la interfaz y arranca las más viejas primero, hasta el límite de Configuración (3 por defecto). Pausar mata el proceso pero conserva la carpeta de trabajo; al reanudar, yt-dlp retoma desde los `.part`. La cola no se guarda: al cerrar la app se cancela lo pendiente, con confirmación.
 - Herramientas: se buscan primero en `tools\` junto al ejecutable y después en `%LOCALAPPDATA%\Jaku Downloader\tools`. Si la carpeta de la app no admite escritura (por ejemplo en `Program Files`), las que faltan se instalan en la del usuario. La app las baja de los mismos releases que `scripts\get-tools.ps1` y verifica el SHA-256 antes de instalarlas.

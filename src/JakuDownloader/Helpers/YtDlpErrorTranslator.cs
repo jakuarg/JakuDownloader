@@ -13,6 +13,8 @@ public static class YtDlpErrorTranslator
     private static readonly (string[] Patterns, string Message)[] KnownErrors =
     [
         (["Private video"], "El video es privado. Solo se puede bajar si el autor lo hace público."),
+        (["playlist does not exist", "This playlist is private", "The playlist is private"],
+            "La lista no existe o es privada. Revisá que el link sea correcto."),
         (["confirm your age", "age-restricted", "inappropriate for some users"],
             "El video tiene restricción de edad y pide iniciar sesión. Todavía no se puede bajar: el uso de cookies llega en la v00.10."),
         (["not a bot"], "YouTube pidió confirmar que no sos un bot. Esperá unos minutos y volvé a intentar."),

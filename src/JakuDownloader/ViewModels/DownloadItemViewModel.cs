@@ -18,7 +18,6 @@ public sealed partial class DownloadItemViewModel : ObservableObject
         Url = url;
         Options = options;
         OutputDirectory = outputDirectory;
-        EnqueuedAt = DateTimeOffset.Now;
         Title = preview?.Title ?? url.AbsoluteUri;
         Channel = preview?.Channel;
         ThumbnailUrl = preview?.ThumbnailUrl;
@@ -36,9 +35,12 @@ public sealed partial class DownloadItemViewModel : ObservableObject
     public string OutputDirectory { get; }
 
     /// <summary>
-    /// Orden de llegada: la cola arranca primero las mas viejas.
+    /// Orden de llegada: la cola arranca primero las mas viejas. Es un contador y no la hora porque
+    /// los videos de una lista se agregan todos en el mismo instante.
     /// </summary>
-    public DateTimeOffset EnqueuedAt { get; private set; }
+    public long Sequence { get; private set; } = Interlocked.Increment(ref s_nextSequence);
+
+    private static long s_nextSequence;
 
     /// <summary>
     /// Carpeta con los archivos parciales. Se conserva al pausar para retomar desde ahi.
@@ -174,7 +176,7 @@ public sealed partial class DownloadItemViewModel : ObservableObject
 
     internal void Requeue(bool moveToBack)
     {
-        if (moveToBack) EnqueuedAt = DateTimeOffset.Now;
+        if (moveToBack) Sequence = Interlocked.Increment(ref s_nextSequence);
         Status = DownloadStatus.Queued;
     }
 

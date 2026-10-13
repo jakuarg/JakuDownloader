@@ -5,18 +5,108 @@ using JakuDownloader.Models;
 namespace JakuDownloader.Services;
 
 /// <summary>
-/// Obtiene titulo, canal, duracion y miniatura de un video sin descargarlo.
+/// Obtiene la informacion de un video, o la lista de videos de una lista de reproduccion o un canal, sin descargarlos.
 /// </summary>
 public sealed class VideoInfoService(YtDlpRunner runner)
 {
+    /// <summary>
+    /// Maximo de videos que se cargan de una lista o canal. 500 tardan unos 5 segundos; un canal grande
+    /// completo puede tardar minutos.
+    /// </summary>
+    public const int MaxPlaylistEntries = 500;
+
     // Solo los campos necesarios: el JSON completo de yt-dlp pesa varios cientos de KB
     private const string Fields = "%(.{id,title,channel,uploader,duration,thumbnail,live_status})j";
 
     private const string GenericError = "No se pudo obtener la información del video.";
+    private const string GenericPlaylistError = "No se pudo obtener la lista de videos.";
+
+    // Videos que YouTube lista pero no se pueden bajar
+    private static readonly string[] UnavailableTitles = ["[Private video]", "[Deleted video]"];
 
     public async Task<VideoInfoResult> GetInfoAsync(Uri url, CancellationToken cancellationToken)
     {
-        using var process = runner.Start(["--no-warnings", "--skip-download", "-O", Fields, "--", url.AbsoluteUri]);
+        var (exitCode, output, error) = await RunAsync(["--no-warnings", "--skip-download", "-O", Fields, "--", url.AbsoluteUri], cancellationToken);
+
+        if (exitCode != 0)
+        {
+            var rawError = YtDlpRunner.ExtractError(error) ?? string.Empty;
+            return VideoInfoResult.Failed(YtDlpErrorTranslator.TryTranslate(rawError) ?? GenericError);
+        }
+
+        var json = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        return json is not null && TryParse(json, out var info)
+            ? VideoInfoResult.Found(info)
+            : VideoInfoResult.Failed(GenericError);
+    }
+
+    /// <summary>
+    /// Lista los videos sin entrar a cada uno (--flat-playlist), hasta <see cref="MaxPlaylistEntries"/>.
+    /// </summary>
+    public async Task<PlaylistResult> GetPlaylistAsync(Uri url, CancellationToken cancellationToken)
+    {
+        // --yes-playlist va despues del --no-playlist comun y lo reemplaza
+        var (exitCode, output, error) = await RunAsync(
+            ["--no-warnings", "--flat-playlist", "--yes-playlist", "-I", $"1:{MaxPlaylistEntries}", "-J", "--", url.AbsoluteUri],
+            cancellationToken);
+
+        if (exitCode != 0)
+        {
+            var rawError = YtDlpRunner.ExtractError(error) ?? string.Empty;
+            return PlaylistResult.Failed(YtDlpErrorTranslator.TryTranslate(rawError) ?? GenericPlaylistError);
+        }
+
+        return TryParsePlaylist(output, out var playlist)
+            ? PlaylistResult.Found(playlist)
+            : PlaylistResult.Failed(GenericPlaylistError);
+    }
+
+    private static bool TryParsePlaylist(string json, out PlaylistInfo playlist)
+    {
+        playlist = null!;
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("entries", out var entriesElement) || entriesElement.ValueKind != JsonValueKind.Array) return false;
+
+            var entries = new List<PlaylistEntry>();
+            foreach (var entry in entriesElement.EnumerateArray())
+            {
+                var id = GetString(entry, "id");
+                var title = GetString(entry, "title");
+                if (id is null || title is null || UnavailableTitles.Contains(title)) continue;
+
+                // Las pestanas de un canal tambien vienen como entradas; solo interesan los videos
+                if (GetString(entry, "_type") == "playlist") continue;
+
+                entries.Add(new PlaylistEntry(
+                    id,
+                    title,
+                    GetString(entry, "url") ?? $"https://www.youtube.com/watch?v={id}",
+                    entry.TryGetProperty("duration", out var duration) && duration.ValueKind == JsonValueKind.Number ? (int)duration.GetDouble() : null,
+                    $"https://i.ytimg.com/vi/{id}/mqdefault.jpg"));
+            }
+
+            int? total = root.TryGetProperty("playlist_count", out var count) && count.ValueKind == JsonValueKind.Number ? count.GetInt32() : null;
+            var rawCount = entriesElement.GetArrayLength();
+            playlist = new PlaylistInfo(
+                GetString(root, "title") ?? "Lista sin título",
+                GetString(root, "channel") ?? GetString(root, "uploader"),
+                entries,
+                total,
+                IsTruncated: total is int known ? known > rawCount : rawCount >= MaxPlaylistEntries);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private async Task<(int ExitCode, string Output, string Error)> RunAsync(IEnumerable<string> arguments, CancellationToken cancellationToken)
+    {
+        using var process = runner.Start(arguments);
 
         var outputTask = process.StandardOutput.ReadToEndAsync();
         var errorTask = process.StandardError.ReadToEndAsync();
@@ -33,19 +123,7 @@ public sealed class VideoInfoService(YtDlpRunner runner)
             throw;
         }
 
-        var output = await outputTask;
-        var error = await errorTask;
-
-        if (process.ExitCode != 0)
-        {
-            var rawError = YtDlpRunner.ExtractError(error) ?? string.Empty;
-            return VideoInfoResult.Failed(YtDlpErrorTranslator.TryTranslate(rawError) ?? GenericError);
-        }
-
-        var json = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-        return json is not null && TryParse(json, out var info)
-            ? VideoInfoResult.Found(info)
-            : VideoInfoResult.Failed(GenericError);
+        return (process.ExitCode, await outputTask, await errorTask);
     }
 
     /// <summary>
