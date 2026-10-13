@@ -4,6 +4,7 @@ using JakuDownloader.ViewModels;
 using JakuDownloader.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
 namespace JakuDownloader;
@@ -23,7 +24,8 @@ public partial class App : Application
                 services.AddSingleton<ToolLocator>();
                 services.AddSingleton<DownloadService>();
                 services.AddSingleton<NotificationService>();
-                services.AddSingleton<MainViewModel>();
+                services.AddSingleton<DownloadViewModel>();
+                services.AddTransient<SettingsViewModel>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();
@@ -36,10 +38,16 @@ public partial class App : Application
     {
         // Tiene que ir antes de crear la ventana
         AppIdentity.Apply();
-        GetService<NotificationService>().Initialize();
+
+        // Se queda antes de la ventana a proposito: tarda poco (~30 ms con 30 restos) y asi
+        // no puede pisarse con una descarga nueva
+        DownloadService.CleanupStaleTempFiles(AppPaths.DownloadDirectory);
 
         _window = GetService<MainWindow>();
         _window.Closed += (_, _) => _host.Dispose();
         _window.Activate();
+
+        // Las notificaciones (~100 ms) recien hacen falta al iniciar una descarga
+        _window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => GetService<NotificationService>().Initialize());
     }
 }

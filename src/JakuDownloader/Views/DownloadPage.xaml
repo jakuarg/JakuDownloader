@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="JakuDownloader.Views.DownloadPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:JakuDownloader.Views.Controls"
+    xmlns:helpers="using:JakuDownloader.Helpers"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
+    NavigationCacheMode="Required">
+
+    <Grid>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <!--  Ventana angosta: botones debajo del link y detalles debajo de la etapa  -->
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="ContentPanel.Padding" Value="16,8,16,24" />
+                        <Setter Target="UrlActions.(Grid.Row)" Value="1" />
+                        <Setter Target="UrlActions.(Grid.Column)" Value="0" />
+                        <Setter Target="UrlActions.HorizontalAlignment" Value="Right" />
+                        <Setter Target="ProgressDetails.(Grid.Row)" Value="1" />
+                        <Setter Target="ProgressDetails.(Grid.Column)" Value="0" />
+                        <Setter Target="PreviewThumbnail.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <ScrollViewer>
+            <StackPanel x:Name="ContentPanel" Style="{StaticResource PageContentStyle}">
+
+                <TextBlock Style="{StaticResource PageTitleStyle}" Text="Descargar" />
+
+                <!--  Link  -->
+                <Grid ColumnSpacing="8" RowSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBox
+                        x:Name="UrlBox"
+                        Header="Link del video"
+                        IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
+                        KeyDown="UrlBox_KeyDown"
+                        PlaceholderText="https://www.youtube.com/watch?v=..."
+                        Text="{x:Bind ViewModel.Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <StackPanel
+                        x:Name="UrlActions"
+                        Grid.Column="1"
+                        VerticalAlignment="Bottom"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            x:Name="PasteButton"
+                            AutomationProperties.Name="Pegar el link del portapapeles"
+                            Command="{x:Bind ViewModel.PasteCommand}"
+                            ToolTipService.ToolTip="Pegar del portapapeles">
+                            <FontIcon FontSize="16" Glyph="&#xE77F;" />
+                        </Button>
+
+                        <Button
+                            x:Name="DownloadButton"
+                            MinWidth="120"
+                            AutomationProperties.Name="Descargar"
+                            Command="{x:Bind ViewModel.DownloadCommand}"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Visibility="{x:Bind ViewModel.IsIdle, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="16" Glyph="&#xE896;" />
+                                <TextBlock Text="Descargar" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button
+                            x:Name="CancelButton"
+                            MinWidth="120"
+                            AutomationProperties.Name="Cancelar la descarga"
+                            Command="{x:Bind ViewModel.CancelCommand}"
+                            Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="16" Glyph="&#xE711;" />
+                                <TextBlock Text="Cancelar" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!--  Destino: la ruta se recorta si no entra; completa en el tooltip y en la ayuda accesible  -->
+                <Grid Margin="2,4,0,0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="&#xE8B7;" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Se guarda en" />
+                    <HyperlinkButton
+                        Grid.Column="2"
+                        Padding="4,2"
+                        HorizontalAlignment="Left"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.DownloadDirectory}"
+                        AutomationProperties.Name="Abrir la carpeta de destino"
+                        Command="{x:Bind ViewModel.OpenDownloadFolderCommand}"
+                        ToolTipService.ToolTip="{x:Bind ViewModel.DownloadDirectory}">
+                        <TextBlock Text="{x:Bind ViewModel.DownloadDirectory}" TextTrimming="CharacterEllipsis" />
+                    </HyperlinkButton>
+                </Grid>
+
+                <!--  Progreso  -->
+                <StackPanel
+                    Margin="0,12,0,0"
+                    Spacing="6"
+                    Visibility="{x:Bind ViewModel.IsDownloading, Mode=OneWay}">
+                    <ProgressBar
+                        AutomationProperties.Name="Progreso de la descarga"
+                        IsIndeterminate="{x:Bind ViewModel.IsProgressIndeterminate, Mode=OneWay}"
+                        Maximum="100"
+                        Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}" />
+                    <Grid ColumnSpacing="12" RowSpacing="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                            x:Name="StageLabel"
+                            Text="{x:Bind ViewModel.StageText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            x:Name="ProgressDetails"
+                            Grid.Column="1"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ViewModel.DetailsText, Mode=OneWay}"
+                            TextWrapping="Wrap" />
+                    </Grid>
+                </StackPanel>
+
+                <!--  Resultado  -->
+                <InfoBar
+                    Margin="0,12,0,0"
+                    IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
+                    Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
+                    Severity="{x:Bind ViewModel.ResultSeverity, Mode=OneWay}"
+                    Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <Button
+                            Command="{x:Bind ViewModel.ExecuteResultActionCommand}"
+                            Content="{x:Bind ViewModel.ResultActionText, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.HasResultAction, Mode=OneWay}" />
+                    </InfoBar.ActionButton>
+                    <StackPanel
+                        Margin="0,0,0,12"
+                        Spacing="4"
+                        Visibility="{x:Bind ViewModel.HasResultDetails, Mode=OneWay}">
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            MaxLines="4"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind ViewModel.ResultDetails, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind ViewModel.IsResultDetailsVisible, Mode=OneWay}" />
+                        <HyperlinkButton
+                            Padding="0"
+                            Command="{x:Bind ViewModel.CopyDetailsCommand}"
+                            Content="Copiar detalles técnicos" />
+                    </StackPanel>
+                </InfoBar>
+
+                <!--
+                    Funciones del roadmap: plegadas para que la pantalla muestre primero lo que ya funciona.
+                    Cuando una se habilita en Features.cs, se mueve arriba, fuera de esta seccion.
+                -->
+                <Expander
+                    Margin="0,28,0,0"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    Padding="12">
+                    <Expander.Header>
+                        <StackPanel Padding="0,12" Spacing="2">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Más opciones (próximamente)" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Vista previa, calidad, formato, listas, subtítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Expander.Header>
+
+                    <StackPanel Spacing="4">
+
+                        <!--  Vista previa  -->
+                        <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Vista previa" />
+                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.VideoInfo}" Version="v00.03" />
+                        </StackPanel>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <Grid ColumnSpacing="16" Opacity="0.55">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border
+                                    x:Name="PreviewThumbnail"
+                                    Width="192"
+                                    Height="108"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="{StaticResource ControlCornerRadius}">
+                                    <FontIcon
+                                        FontSize="32"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Glyph="&#xE714;" />
+                                </Border>
+
+                                <StackPanel
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Spacing="6">
+                                    <TextBlock
+                                        Style="{StaticResource SubtitleTextBlockStyle}"
+                                        Text="Título del video"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontSize="14" Glyph="&#xE77B;" />
+                                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Canal" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon FontSize="14" Glyph="&#xE916;" />
+                                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Duración" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!--  Opciones  -->
+                        <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Opciones" />
+                        </StackPanel>
+
+                        <toolkit:SettingsCard Description="Video con audio, o solo el audio" Header="Tipo de descarga">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE8B2;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.VideoInfo}" Version="v00.03" />
+                                <ComboBox
+                                    MinWidth="{StaticResource OptionWidth}"
+                                    AutomationProperties.Name="Tipo de descarga"
+                                    IsEnabled="{x:Bind helpers:Features.VideoInfo}"
+                                    SelectedIndex="0">
+                                    <x:String>Video</x:String>
+                                    <x:String>Solo audio</x:String>
+                                </ComboBox>
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Description="Resolución máxima del video" Header="Calidad">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE7F4;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.QualityAndFormats}" Version="v00.04" />
+                                <ComboBox
+                                    MinWidth="{StaticResource OptionWidth}"
+                                    AutomationProperties.Name="Calidad"
+                                    IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
+                                    SelectedIndex="0">
+                                    <x:String>La mejor disponible</x:String>
+                                    <x:String>2160p (4K)</x:String>
+                                    <x:String>1440p (2K)</x:String>
+                                    <x:String>1080p (Full HD)</x:String>
+                                    <x:String>720p (HD)</x:String>
+                                    <x:String>480p</x:String>
+                                    <x:String>360p</x:String>
+                                </ComboBox>
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Description="Tipo de archivo que se guarda" Header="Formato">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE7C3;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.QualityAndFormats}" Version="v00.04" />
+                                <ComboBox
+                                    MinWidth="{StaticResource OptionWidth}"
+                                    AutomationProperties.Name="Formato"
+                                    IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
+                                    SelectedIndex="0">
+                                    <x:String>MP4 (video)</x:String>
+                                    <x:String>MKV (video)</x:String>
+                                    <x:String>WebM (video)</x:String>
+                                    <x:String>MP3 (audio)</x:String>
+                                    <x:String>M4A (audio)</x:String>
+                                    <x:String>Opus (audio)</x:String>
+                                    <x:String>FLAC (audio sin pérdida)</x:String>
+                                    <x:String>WAV (audio sin comprimir)</x:String>
+                                </ComboBox>
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsExpander Description="Para elegir a mano cómo se comprime el video y el audio" Header="Códecs">
+                            <toolkit:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE9E9;" />
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.QualityAndFormats}" Version="v00.04" />
+                            <toolkit:SettingsExpander.Items>
+                                <toolkit:SettingsCard Description="Automático elige H.264 cuando la resolución lo permite" Header="Códec de video">
+                                    <ComboBox
+                                        MinWidth="{StaticResource OptionWidth}"
+                                        AutomationProperties.Name="Códec de video"
+                                        IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
+                                        SelectedIndex="0">
+                                        <x:String>Automático</x:String>
+                                        <x:String>H.264 (AVC)</x:String>
+                                        <x:String>H.265 (HEVC)</x:String>
+                                        <x:String>VP9</x:String>
+                                        <x:String>AV1</x:String>
+                                    </ComboBox>
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard Header="Códec de audio">
+                                    <ComboBox
+                                        MinWidth="{StaticResource OptionWidth}"
+                                        AutomationProperties.Name="Códec de audio"
+                                        IsEnabled="{x:Bind helpers:Features.QualityAndFormats}"
+                                        SelectedIndex="0">
+                                        <x:String>Automático</x:String>
+                                        <x:String>AAC</x:String>
+                                        <x:String>Opus</x:String>
+                                        <x:String>MP3</x:String>
+                                        <x:String>FLAC</x:String>
+                                    </ComboBox>
+                                </toolkit:SettingsCard>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
+
+                        <!--  Extras  -->
+                        <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Extras" />
+                        </StackPanel>
+
+                        <toolkit:SettingsExpander Description="Cuando el link es de una lista o de un canal" Header="Listas de reproducción y canales">
+                            <toolkit:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE90B;" />
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Playlists}" Version="v00.07" />
+                            <toolkit:SettingsExpander.Items>
+                                <toolkit:SettingsCard Description="Si está apagado, se baja solo el video del link" Header="Descargar la lista completa">
+                                    <ToggleSwitch AutomationProperties.Name="Descargar la lista completa" IsEnabled="{x:Bind helpers:Features.Playlists}" />
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard Description="Marcar qué videos de la lista o del canal bajar" Header="Elegir videos">
+                                    <Button Content="Elegir..." IsEnabled="{x:Bind helpers:Features.Playlists}" />
+                                </toolkit:SettingsCard>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
+
+                        <toolkit:SettingsExpander Description="Subtítulos, capítulos, miniatura y metadatos dentro del archivo" Header="Subtítulos y capítulos">
+                            <toolkit:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE7F0;" />
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Subtitles}" Version="v00.08" />
+                            <toolkit:SettingsExpander.Items>
+                                <toolkit:SettingsCard Header="Descargar subtítulos">
+                                    <ToggleSwitch AutomationProperties.Name="Descargar subtítulos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard Description="Códigos separados por coma, por ejemplo es, en" Header="Idiomas">
+                                    <TextBox
+                                        MinWidth="{StaticResource OptionWidth}"
+                                        AutomationProperties.Name="Idiomas de los subtítulos"
+                                        IsEnabled="{x:Bind helpers:Features.Subtitles}"
+                                        PlaceholderText="es, en" />
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard Description="Quedan dentro del video en lugar de un archivo aparte" Header="Incrustar subtítulos">
+                                    <ToggleSwitch AutomationProperties.Name="Incrustar subtítulos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard Description="Para saltar entre partes del video desde el reproductor" Header="Incrustar capítulos">
+                                    <ToggleSwitch AutomationProperties.Name="Incrustar capítulos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard Description="Portada, título y artista, útil para música" Header="Incrustar miniatura y metadatos">
+                                    <ToggleSwitch AutomationProperties.Name="Incrustar miniatura y metadatos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
+                                </toolkit:SettingsCard>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
+
+                        <toolkit:SettingsExpander Description="Segmentos patrocinados marcados por la comunidad" Header="SponsorBlock">
+                            <toolkit:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE7C1;" />
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.SponsorBlock}" Version="v00.09" />
+                            <toolkit:SettingsExpander.Items>
+                                <toolkit:SettingsCard Header="Qué hacer con los segmentos">
+                                    <ComboBox
+                                        MinWidth="{StaticResource OptionWidth}"
+                                        AutomationProperties.Name="Qué hacer con los segmentos"
+                                        IsEnabled="{x:Bind helpers:Features.SponsorBlock}"
+                                        SelectedIndex="0">
+                                        <x:String>Nada</x:String>
+                                        <x:String>Marcarlos como capítulos</x:String>
+                                        <x:String>Eliminarlos del video</x:String>
+                                    </ComboBox>
+                                </toolkit:SettingsCard>
+                                <toolkit:SettingsCard
+                                    HorizontalContentAlignment="Left"
+                                    ContentAlignment="Vertical"
+                                    Header="Categorías">
+                                    <VariableSizedWrapGrid ItemWidth="220" Orientation="Horizontal">
+                                        <CheckBox Content="Patrocinio" IsChecked="True" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Autopromoción" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Pedido de suscripción" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Intro" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Créditos finales" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Avance" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Partes sin música" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                        <CheckBox Content="Relleno" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
+                                    </VariableSizedWrapGrid>
+                                </toolkit:SettingsCard>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

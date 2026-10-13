@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="JakuDownloader.Views.HistoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:JakuDownloader.Views.Controls"
+    xmlns:helpers="using:JakuDownloader.Helpers">
+
+    <Grid>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="ContentPanel.Padding" Value="16,8,16,24" />
+                        <Setter Target="ExampleThumbnail.Visibility" Value="Collapsed" />
+                        <Setter Target="ExampleActions.(Grid.Row)" Value="1" />
+                        <Setter Target="ExampleActions.(Grid.Column)" Value="1" />
+                        <Setter Target="ExampleActions.HorizontalAlignment" Value="Left" />
+                        <Setter Target="ExampleActions.Margin" Value="0,8,0,0" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <ScrollViewer>
+            <StackPanel x:Name="ContentPanel" Style="{StaticResource PageContentStyle}">
+
+                <StackPanel
+                    Margin="0,0,0,20"
+                    Orientation="Horizontal"
+                    Spacing="12">
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Historial" />
+                    <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" Version="v00.06" />
+                </StackPanel>
+
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="400" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <AutoSuggestBox
+                        AutomationProperties.Name="Buscar en el historial"
+                        IsEnabled="{x:Bind helpers:Features.Queue}"
+                        PlaceholderText="Buscar en el historial"
+                        QueryIcon="Find" />
+                    <Button Grid.Column="1" IsEnabled="{x:Bind helpers:Features.Queue}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="16" Glyph="&#xE74D;" />
+                            <TextBlock Text="Borrar historial" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <TextBlock
+                    Margin="1,16,0,8"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Ejemplo de cómo se va a ver cada descarga terminada. Todavía no se guarda el historial."
+                    TextWrapping="Wrap" />
+
+                <!--  Ejemplo. Botones deshabilitados: no son acciones reales  -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid ColumnSpacing="16" Opacity="0.6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border
+                            x:Name="ExampleThumbnail"
+                            Width="112"
+                            Height="63"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="{StaticResource ControlCornerRadius}">
+                            <FontIcon Foreground="{ThemeResource TextFillColorTertiaryBrush}" Glyph="&#xE714;" />
+                        </Border>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Spacing="4">
+                            <TextBlock
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Ejemplo: título del video"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Canal · 13/10/2026 03:08 · MP4 1080p · 27,4 MB"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel
+                            x:Name="ExampleActions"
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="4">
+                            <Button
+                                AutomationProperties.Name="Abrir (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Abrir">
+                                <FontIcon FontSize="16" Glyph="&#xE768;" />
+                            </Button>
+                            <Button
+                                AutomationProperties.Name="Mostrar en la carpeta (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Mostrar en la carpeta">
+                                <FontIcon FontSize="16" Glyph="&#xE838;" />
+                            </Button>
+                            <Button
+                                AutomationProperties.Name="Descargar de nuevo (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Descargar de nuevo">
+                                <FontIcon FontSize="16" Glyph="&#xE896;" />
+                            </Button>
+                            <Button
+                                AutomationProperties.Name="Quitar del historial (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Quitar del historial">
+                                <FontIcon FontSize="16" Glyph="&#xE74D;" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

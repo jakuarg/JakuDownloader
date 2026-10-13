@@ -8,6 +8,37 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!--  Contenido de cada pagina  -->
+            <Style x:Key="PageContentStyle" TargetType="StackPanel">
+                <Setter Property="MaxWidth" Value="1000" />
+                <Setter Property="Padding" Value="36,8,36,36" />
+                <Setter Property="Spacing" Value="4" />
+            </Style>
+
+            <Style
+                x:Key="PageTitleStyle"
+                BasedOn="{StaticResource TitleTextBlockStyle}"
+                TargetType="TextBlock">
+                <Setter Property="Margin" Value="0,0,0,20" />
+            </Style>
+
+            <!--  Titulo de seccion con lugar para el distintivo "Proximamente"  -->
+            <Style x:Key="SectionHeaderStyle" TargetType="StackPanel">
+                <Setter Property="Orientation" Value="Horizontal" />
+                <Setter Property="Spacing" Value="10" />
+                <Setter Property="Margin" Value="1,28,0,8" />
+            </Style>
+
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="{StaticResource OverlayCornerRadius}" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+
+            <x:Double x:Key="OptionWidth">220</x:Double>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

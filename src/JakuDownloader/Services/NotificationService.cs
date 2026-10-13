@@ -1,5 +1,5 @@
+using System.Security;
 using JakuDownloader.Helpers;
-using Microsoft.Windows.AppNotifications.Builder;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
 
@@ -29,19 +29,40 @@ public sealed class NotificationService
         }
     }
 
-    public void Show(string title, string message)
+    /// <summary>
+    /// Muestra un toast. Al hacer clic, o en el boton "Abrir carpeta", se abre <paramref name="folder"/>.
+    /// </summary>
+    public void Show(string title, string message, string folder)
     {
         if (_notifier is null) return;
 
-        // El builder arma el XML y se encarga de escapar el texto
-        var payload = new AppNotificationBuilder()
-            .AddText(title)
-            .AddText(message)
-            .BuildNotification()
-            .Payload;
+        // Activacion por protocolo: Windows abre la carpeta sin volver a lanzar la app
+        var folderUri = Escape(new Uri(folder).AbsoluteUri);
+        var xml = $"""
+            <toast activationType="protocol" launch="{folderUri}">
+              <visual>
+                <binding template="ToastGeneric">
+                  <text>{Escape(title)}</text>
+                  <text>{Escape(message)}</text>
+                </binding>
+              </visual>
+              <actions>
+                <action content="Abrir carpeta" activationType="protocol" arguments="{folderUri}" />
+              </actions>
+            </toast>
+            """;
 
-        var xml = new XmlDocument();
-        xml.LoadXml(payload);
-        _notifier.Show(new ToastNotification(xml));
+        try
+        {
+            var document = new XmlDocument();
+            document.LoadXml(xml);
+            _notifier.Show(new ToastNotification(document));
+        }
+        catch (Exception)
+        {
+            // Un toast que falla no tiene que cortar la descarga
+        }
     }
+
+    private static string Escape(string text) => SecurityElement.Escape(text) ?? string.Empty;
 }

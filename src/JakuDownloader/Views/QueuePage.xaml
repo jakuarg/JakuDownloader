@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="JakuDownloader.Views.QueuePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:JakuDownloader.Views.Controls"
+    xmlns:helpers="using:JakuDownloader.Helpers">
+
+    <Grid>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="ContentPanel.Padding" Value="16,8,16,24" />
+                        <Setter Target="ExampleThumbnail1.Visibility" Value="Collapsed" />
+                        <Setter Target="ExampleThumbnail2.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720" />
+                    </VisualState.StateTriggers>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <ScrollViewer>
+            <StackPanel x:Name="ContentPanel" Style="{StaticResource PageContentStyle}">
+
+                <StackPanel
+                    Margin="0,0,0,20"
+                    Orientation="Horizontal"
+                    Spacing="12">
+                    <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Cola de descargas" />
+                    <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" Version="v00.06" />
+                </StackPanel>
+
+                <!--  Acciones sobre toda la cola  -->
+                <CommandBar
+                    HorizontalAlignment="Left"
+                    DefaultLabelPosition="Right"
+                    IsEnabled="{x:Bind helpers:Features.Queue}">
+                    <AppBarButton Label="Pausar todo">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE769;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Label="Reanudar todo">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE768;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Label="Cancelar todo">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE711;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarSeparator />
+                    <AppBarButton Label="Quitar terminadas">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE894;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar>
+
+                <TextBlock
+                    Margin="1,16,0,8"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Ejemplo de cómo se va a ver cada descarga de la cola. Todavía no hay descargas reales acá."
+                    TextWrapping="Wrap" />
+
+                <!--  Ejemplo: descarga en curso. Botones deshabilitados: no son acciones reales  -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid ColumnSpacing="16" Opacity="0.6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            x:Name="ExampleThumbnail1"
+                            Width="112"
+                            Height="63"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="{StaticResource ControlCornerRadius}">
+                            <FontIcon Foreground="{ThemeResource TextFillColorTertiaryBrush}" Glyph="&#xE714;" />
+                        </Border>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Spacing="6">
+                            <TextBlock
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Ejemplo: título del video"
+                                TextTrimming="CharacterEllipsis" />
+                            <ProgressBar
+                                AutomationProperties.Name="Progreso de ejemplo"
+                                Maximum="100"
+                                Value="45" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Descargando video · 45 % · 12,3 MB de 27,4 MB · 3,2 MB/s · quedan 0:05"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="4">
+                            <Button
+                                AutomationProperties.Name="Pausar (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Pausar">
+                                <FontIcon FontSize="16" Glyph="&#xE769;" />
+                            </Button>
+                            <Button
+                                AutomationProperties.Name="Cancelar (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Cancelar">
+                                <FontIcon FontSize="16" Glyph="&#xE711;" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!--  Ejemplo: descarga con error  -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid ColumnSpacing="16" Opacity="0.6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            x:Name="ExampleThumbnail2"
+                            Width="112"
+                            Height="63"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="{StaticResource ControlCornerRadius}">
+                            <FontIcon Foreground="{ThemeResource TextFillColorTertiaryBrush}" Glyph="&#xE714;" />
+                        </Border>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Spacing="6">
+                            <TextBlock
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Ejemplo: otro video"
+                                TextTrimming="CharacterEllipsis" />
+                            <Grid ColumnSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon
+                                    VerticalAlignment="Top"
+                                    FontSize="14"
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Glyph="&#xEA39;" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="No hay conexión a internet o el sitio no responde."
+                                    TextWrapping="Wrap" />
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="4">
+                            <Button
+                                AutomationProperties.Name="Reintentar (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Reintentar">
+                                <FontIcon FontSize="16" Glyph="&#xE72C;" />
+                            </Button>
+                            <Button
+                                AutomationProperties.Name="Quitar de la cola (ejemplo)"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="Quitar de la cola">
+                                <FontIcon FontSize="16" Glyph="&#xE74D;" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
