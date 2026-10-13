@@ -8,12 +8,30 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace JakuDownloader.ViewModels;
 
-public sealed partial class DownloadViewModel(
-    DownloadService downloadService,
-    VideoInfoService videoInfoService,
-    NotificationService notificationService,
-    ToolLocator toolLocator) : ObservableObject
+public sealed partial class DownloadViewModel : ObservableObject
 {
+    private readonly DownloadService downloadService;
+    private readonly VideoInfoService videoInfoService;
+    private readonly NotificationService notificationService;
+    private readonly ToolLocator toolLocator;
+
+    public DownloadViewModel(
+        DownloadService downloadService,
+        VideoInfoService videoInfoService,
+        NotificationService notificationService,
+        ToolLocator toolLocator,
+        SettingsService settings)
+    {
+        this.downloadService = downloadService;
+        this.videoInfoService = videoInfoService;
+        this.notificationService = notificationService;
+        this.toolLocator = toolLocator;
+
+        // La carpeta se puede cambiar desde Configuracion; la proxima descarga usa la nueva
+        DownloadDirectory = settings.DownloadDirectory;
+        settings.Changed += (_, _) => DownloadDirectory = settings.DownloadDirectory;
+    }
+
     private const string UnexpectedErrorMessage =
         "Ocurrió un error inesperado. Podés volver a intentar o copiar los detalles para reportarlo.";
 
@@ -174,7 +192,8 @@ public sealed partial class DownloadViewModel(
 
     public bool IsIdle => !IsDownloading;
 
-    public string DownloadDirectory { get; } = AppPaths.DownloadDirectory;
+    [ObservableProperty]
+    public partial string DownloadDirectory { get; set; }
 
     public bool HasResultDetails => ResultDetails.Length > 0;
 
@@ -184,7 +203,6 @@ public sealed partial class DownloadViewModel(
     {
         ResultAction.OpenFolder => "Abrir carpeta",
         ResultAction.Retry => "Reintentar",
-        ResultAction.OpenToolsFolder => "Abrir carpeta tools",
         _ => string.Empty,
     };
 
@@ -212,13 +230,12 @@ public sealed partial class DownloadViewModel(
             return;
         }
 
-        var missingTools = toolLocator.GetMissingTools();
+        var missingTools = toolLocator.GetMissingRequired();
         if (missingTools.Count > 0)
         {
             ShowResult(InfoBarSeverity.Error, "Faltan herramientas",
-                $"No se encontró {string.Join(" ni ", missingTools)} en la carpeta tools, junto al programa. "
-                + "Volvé a descomprimir Jaku Downloader completo; si compilaste la app, corré scripts\\get-tools.ps1.",
-                action: ResultAction.OpenToolsFolder);
+                $"Para descargar hace falta {string.Join(" y ", missingTools.Select(ToolLocator.DisplayName))}. "
+                + "Usá el botón \"Descargar herramientas\" de arriba.");
             return;
         }
 
@@ -352,10 +369,6 @@ public sealed partial class DownloadViewModel(
             case ResultAction.Retry:
                 if (DownloadCommand.CanExecute(null)) DownloadCommand.Execute(null);
                 break;
-
-            case ResultAction.OpenToolsFolder:
-                if (!ShellHelper.TryOpenFolder(toolLocator.ToolsDirectory, out var toolsError)) ShowFolderError(toolsError);
-                break;
         }
     }
 
@@ -397,6 +410,14 @@ public sealed partial class DownloadViewModel(
     }
 
     /// <summary>
+    /// Vuelve a buscar la vista previa del link actual, por ejemplo despues de instalar las herramientas.
+    /// </summary>
+    public void ReloadPreview()
+    {
+        if (!IsDownloading) RefreshPreview(Url);
+    }
+
+    /// <summary>
     /// Busca la informacion del video cada vez que cambia el link. Una busqueda nueva cancela la anterior.
     /// </summary>
     private async void RefreshPreview(string text)
@@ -417,7 +438,7 @@ public sealed partial class DownloadViewModel(
             return;
         }
 
-        if (toolLocator.GetMissingTools().Count > 0)
+        if (toolLocator.GetMissingRequired().Count > 0)
         {
             PreviewState = PreviewState.None;
             return;

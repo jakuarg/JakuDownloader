@@ -33,28 +33,40 @@
                 <TextBlock Style="{StaticResource PageTitleStyle}" Text="Configuración" />
 
                 <InfoBar
-                    Title="No se pudo abrir la carpeta"
+                    Title="{x:Bind ViewModel.ErrorTitle, Mode=OneWay}"
                     Margin="0,0,0,8"
                     IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                     Severity="Warning" />
+
+                <InfoBar
+                    Title="{x:Bind ViewModel.Tools.InstallResultTitle, Mode=OneWay}"
+                    Margin="0,0,0,8"
+                    IsOpen="{x:Bind ViewModel.Tools.IsInstallResultOpen, Mode=TwoWay}"
+                    Message="{x:Bind ViewModel.Tools.InstallResultMessage, Mode=OneWay}"
+                    Severity="{x:Bind ViewModel.Tools.InstallResultSeverity, Mode=OneWay}" />
 
                 <!--  Descargas  -->
                 <StackPanel Margin="1,0,0,8" Style="{StaticResource SectionHeaderStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Descargas" />
                 </StackPanel>
 
-                <toolkit:SettingsCard Description="{x:Bind ViewModel.DownloadDirectory}" Header="Carpeta de destino">
+                <toolkit:SettingsCard Description="{x:Bind ViewModel.DownloadDirectory, Mode=OneWay}" Header="Carpeta de destino">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE8B7;" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Command="{x:Bind ViewModel.OpenDownloadFolderCommand}" Content="Abrir" />
-                        <controls:FeatureBadge
-                            Margin="8,0,0,0"
-                            IsAvailable="{x:Bind helpers:Features.Settings}"
-                            Version="v00.05" />
-                        <Button Content="Cambiar..." IsEnabled="{x:Bind helpers:Features.Settings}" />
+                        <Button
+                            AutomationProperties.Name="Cambiar la carpeta de destino"
+                            Command="{x:Bind ViewModel.ChangeDownloadFolderCommand}"
+                            Content="Cambiar..." />
+                        <Button
+                            AutomationProperties.Name="Volver a la carpeta de destino por defecto"
+                            Command="{x:Bind ViewModel.ResetDownloadFolderCommand}"
+                            Content="Restablecer"
+                            ToolTipService.ToolTip="Volver a Descargas\Jaku Downloader"
+                            Visibility="{x:Bind ViewModel.IsCustomDirectory, Mode=OneWay}" />
                     </StackPanel>
                 </toolkit:SettingsCard>
 
@@ -62,7 +74,6 @@
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE8AC;" />
                     </toolkit:SettingsExpander.HeaderIcon>
-                    <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Settings}" Version="v00.05" />
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard
                             HorizontalContentAlignment="Stretch"
@@ -70,14 +81,31 @@
                             Header="Plantilla">
                             <StackPanel Spacing="8">
                                 <TextBox
+                                    AutomationProperties.Name="Plantilla del nombre de los archivos"
                                     FontFamily="Consolas"
-                                    IsEnabled="{x:Bind helpers:Features.Settings}"
-                                    Text="{x:Bind ViewModel.FileNameTemplate}" />
+                                    Text="{x:Bind ViewModel.TemplateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind ViewModel.TemplateExample, Mode=OneWay}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{x:Bind ViewModel.IsTemplateValid, Mode=OneWay}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Text="{x:Bind ViewModel.TemplateError, Mode=OneWay}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{x:Bind ViewModel.IsTemplateInvalid, Mode=OneWay}" />
                                 <TextBlock
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="Campos: %(title)s título · %(id)s identificador · %(uploader)s canal · %(upload_date)s fecha · %(ext)s extensión"
+                                    Text="Campos: %(title)s título · %(id)s identificador · %(uploader)s canal · %(upload_date)s fecha · %(height)s alto del video · %(ext)s extensión"
                                     TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button
+                                        Command="{x:Bind ViewModel.SaveTemplateCommand}"
+                                        Content="Guardar"
+                                        Style="{StaticResource AccentButtonStyle}" />
+                                    <Button Command="{x:Bind ViewModel.ResetTemplateCommand}" Content="Restablecer" />
+                                </StackPanel>
                             </StackPanel>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
@@ -90,6 +118,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Queue}" Version="v00.06" />
                         <NumberBox
+                            AutomationProperties.Name="Descargas simultáneas"
                             IsEnabled="{x:Bind helpers:Features.Queue}"
                             Maximum="10"
                             Minimum="1"
@@ -104,14 +133,14 @@
                 </StackPanel>
 
                 <toolkit:SettingsExpander
-                    Description="Programas que hacen la descarga y la conversión"
+                    Description="{x:Bind ViewModel.Tools.ToolsDirectory, Mode=OneWay}"
                     Header="yt-dlp, FFmpeg y Deno"
                     IsExpanded="True"
-                    ItemsSource="{x:Bind ViewModel.Tools}">
+                    ItemsSource="{x:Bind ViewModel.Tools.Tools, Mode=OneWay}">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE90F;" />
                     </toolkit:SettingsExpander.HeaderIcon>
-                    <Button Command="{x:Bind ViewModel.OpenToolsFolderCommand}" Content="Abrir carpeta" />
+                    <Button Command="{x:Bind ViewModel.Tools.OpenToolsFolderCommand}" Content="Abrir carpeta" />
                     <toolkit:SettingsExpander.ItemTemplate>
                         <DataTemplate x:DataType="models:ToolInfo">
                             <toolkit:SettingsCard Description="{x:Bind Description}" Header="{x:Bind Name}">
@@ -124,23 +153,29 @@
                     </toolkit:SettingsExpander.ItemTemplate>
                 </toolkit:SettingsExpander>
 
-                <toolkit:SettingsCard Description="YouTube cambia seguido y casi todos los errores raros se arreglan actualizando. Mientras tanto, se actualiza a mano reemplazando yt-dlp.exe en la carpeta tools." Header="Actualizar yt-dlp">
+                <toolkit:SettingsCard Description="{x:Bind ViewModel.Tools.UpdateDescription, Mode=OneWay}" Header="Actualizar yt-dlp">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE895;" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Settings}" Version="v00.05" />
-                        <Button Content="Buscar actualización" IsEnabled="{x:Bind helpers:Features.Settings}" />
+                        <ProgressRing
+                            Width="20"
+                            Height="20"
+                            IsActive="{x:Bind ViewModel.Tools.IsUpdating, Mode=OneWay}" />
+                        <Button Command="{x:Bind ViewModel.Tools.UpdateYtDlpCommand}" Content="Buscar actualización" />
                     </StackPanel>
                 </toolkit:SettingsCard>
 
-                <toolkit:SettingsCard Description="Baja las herramientas que no estén en la carpeta tools" Header="Descargar herramientas faltantes">
+                <toolkit:SettingsCard Description="{x:Bind ViewModel.Tools.InstallDescription, Mode=OneWay}" Header="Descargar herramientas faltantes">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE896;" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Settings}" Version="v00.05" />
-                        <Button Content="Descargar" IsEnabled="{x:Bind helpers:Features.Settings}" />
+                        <ProgressRing
+                            Width="20"
+                            Height="20"
+                            IsActive="{x:Bind ViewModel.Tools.IsInstalling, Mode=OneWay}" />
+                        <Button Command="{x:Bind ViewModel.Tools.InstallMissingCommand}" Content="Descargar" />
                     </StackPanel>
                 </toolkit:SettingsCard>
 

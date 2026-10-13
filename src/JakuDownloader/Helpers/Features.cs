@@ -13,7 +13,7 @@ public static class Features
     public static bool QualityAndFormats => true;
 
     /// <summary>v00.05.00: carpeta de destino, plantilla de nombre y gestion de herramientas.</summary>
-    public static bool Settings => false;
+    public static bool Settings => true;
 
     /// <summary>v00.06.00: cola de descargas e historial.</summary>
     public static bool Queue => false;

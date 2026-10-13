@@ -58,7 +58,7 @@ public sealed class YtDlpRunner(ToolLocator toolLocator)
         yield return "--no-playlist";
 
         yield return "--ffmpeg-location";
-        yield return toolLocator.ToolsDirectory;
+        yield return toolLocator.FfmpegDirectory;
         if (toolLocator.HasDeno)
         {
             yield return "--js-runtimes";

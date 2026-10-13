@@ -40,6 +40,43 @@
 
                 <TextBlock Style="{StaticResource PageTitleStyle}" Text="Descargar" />
 
+                <!--  Herramientas: aviso si faltan, progreso mientras se instalan y resultado  -->
+                <InfoBar
+                    Title="Faltan herramientas"
+                    Margin="0,0,0,12"
+                    IsClosable="False"
+                    IsOpen="{x:Bind Tools.IsMissingBannerOpen, Mode=OneWay}"
+                    Message="{x:Bind Tools.MissingToolsMessage, Mode=OneWay}"
+                    Severity="Warning">
+                    <InfoBar.ActionButton>
+                        <Button
+                            Command="{x:Bind Tools.InstallMissingCommand}"
+                            Content="Descargar herramientas"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+
+                <InfoBar
+                    Title="Descargando herramientas"
+                    Margin="0,0,0,12"
+                    IsClosable="False"
+                    IsOpen="{x:Bind Tools.IsInstalling, Mode=OneWay}"
+                    Message="{x:Bind Tools.InstallStatus, Mode=OneWay}"
+                    Severity="Informational">
+                    <ProgressBar
+                        Margin="0,0,0,12"
+                        AutomationProperties.Name="Progreso de la descarga de herramientas"
+                        Maximum="100"
+                        Value="{x:Bind Tools.InstallProgress, Mode=OneWay}" />
+                </InfoBar>
+
+                <InfoBar
+                    Title="{x:Bind Tools.InstallResultTitle, Mode=OneWay}"
+                    Margin="0,0,0,12"
+                    IsOpen="{x:Bind Tools.IsInstallResultOpen, Mode=TwoWay}"
+                    Message="{x:Bind Tools.InstallResultMessage, Mode=OneWay}"
+                    Severity="{x:Bind Tools.InstallResultSeverity, Mode=OneWay}" />
+
                 <!--  Link  -->
                 <Grid ColumnSpacing="8" RowSpacing="8">
                     <Grid.ColumnDefinitions>
@@ -121,11 +158,11 @@
                         Grid.Column="2"
                         Padding="4,2"
                         HorizontalAlignment="Left"
-                        AutomationProperties.HelpText="{x:Bind ViewModel.DownloadDirectory}"
+                        AutomationProperties.HelpText="{x:Bind ViewModel.DownloadDirectory, Mode=OneWay}"
                         AutomationProperties.Name="Abrir la carpeta de destino"
                         Command="{x:Bind ViewModel.OpenDownloadFolderCommand}"
-                        ToolTipService.ToolTip="{x:Bind ViewModel.DownloadDirectory}">
-                        <TextBlock Text="{x:Bind ViewModel.DownloadDirectory}" TextTrimming="CharacterEllipsis" />
+                        ToolTipService.ToolTip="{x:Bind ViewModel.DownloadDirectory, Mode=OneWay}">
+                        <TextBlock Text="{x:Bind ViewModel.DownloadDirectory, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
                     </HyperlinkButton>
                 </Grid>
 

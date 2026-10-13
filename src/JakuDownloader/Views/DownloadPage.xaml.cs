@@ -14,6 +14,8 @@ public sealed partial class DownloadPage : Page
 
     public DownloadViewModel ViewModel { get; } = App.GetService<DownloadViewModel>();
 
+    public ToolsViewModel Tools { get; } = App.GetService<ToolsViewModel>();
+
     public DownloadPage()
     {
         InitializeComponent();

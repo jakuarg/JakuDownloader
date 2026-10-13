@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.04.00 (en desarrollo)
+**Versión actual:** v00.05.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -67,9 +67,9 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Selección de códecs de video y audio
 
 ### v00.05.00 - Ajustes y herramientas
-- [ ] Página de ajustes: carpeta de destino y plantilla de nombre de archivo
-- [ ] Descarga automática de yt-dlp, FFmpeg y Deno si faltan
-- [ ] Botón para actualizar yt-dlp desde la app
+- [x] Página de ajustes: carpeta de destino y plantilla de nombre de archivo
+- [x] Descarga automática de yt-dlp, FFmpeg y Deno si faltan
+- [x] Botón para actualizar yt-dlp desde la app
 
 ### v00.06.00 - Cola de descargas
 - [ ] Varias descargas a la vez, con límite configurable
@@ -130,7 +130,7 @@ La app lanza estos programas como procesos, lee su salida para mostrar el progre
 
 Para usar:
 - Windows 10 (1809 o superior) o Windows 11
-- Nada más: yt-dlp, FFmpeg y Deno vienen incluidos en la carpeta `tools\` (desde v00.05.00 la app además puede bajarlos o actualizarlos sola)
+- Nada más: yt-dlp, FFmpeg y Deno vienen incluidos en la carpeta `tools\`. Si falta alguno, la app ofrece bajarlo (unos 130 MB la primera vez) y yt-dlp se actualiza desde Configuración.
 
 Para compilar:
 - Visual Studio 2022 o 2026 con la carga de trabajo de desarrollo de aplicaciones WinUI
@@ -261,6 +261,9 @@ Puntos a tener en cuenta:
 - Cancelar matando el árbol de procesos. yt-dlp trabaja solo en una carpeta oculta `.jaku-temp\<id>` dentro del destino (mismo disco, así mover el archivo final es instantáneo); al cancelar o fallar se borra esa carpeta.
 - yt-dlp nunca tiene que ver la carpeta de destino: si encuentra un archivo con el mismo nombre que su intermedio (por ejemplo un video `.webm` al bajar solo el audio de ese video), lo toma como propio y lo borra después de extraer el audio. Por eso el archivo final lo mueve la app, y si el nombre ya existe agrega " (2)".
 - Actualizar la UI desde otros hilos con `DispatcherQueue`.
+- Configuración: `%LOCALAPPDATA%\Jaku Downloader\settings.json`. Solo guarda lo que difiere del valor por defecto.
+- Herramientas: se buscan primero en `tools\` junto al ejecutable y después en `%LOCALAPPDATA%\Jaku Downloader\tools`. Si la carpeta de la app no admite escritura (por ejemplo en `Program Files`), las que faltan se instalan en la del usuario. La app las baja de los mismos releases que `scripts\get-tools.ps1` y verifica el SHA-256 antes de instalarlas.
+- Actualizar yt-dlp es `yt-dlp -U`; la app compara `--version` antes y después para saber si cambió. No se puede mientras hay una descarga, porque el ejecutable está en uso.
 - Toasts: Windows no muestra los de una app sin empaquetar si no tiene un acceso directo en Inicio con su AppUserModelID. La app crea `Jaku Downloader.lnk` al iniciar y usa el ID `JakuDownloader`. `AppNotificationManager` no sirve para esto: registra su propio ID y los toasts se entregan pero no aparecen.
 - YouTube cambia seguido. Casi todos los errores raros ("confirm you're not a bot", formatos faltantes) se arreglan actualizando yt-dlp.
 

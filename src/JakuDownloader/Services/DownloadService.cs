@@ -4,10 +4,8 @@ using JakuDownloader.Models;
 
 namespace JakuDownloader.Services;
 
-public sealed class DownloadService(YtDlpRunner runner)
+public sealed class DownloadService(YtDlpRunner runner, SettingsService settings)
 {
-    public const string OutputTemplate = "%(title)s [%(id)s].%(ext)s";
-
     // yt-dlp reporta progreso muchas veces por segundo; mas que esto no se nota en pantalla
     private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(150);
 
@@ -33,7 +31,8 @@ public sealed class DownloadService(YtDlpRunner runner)
 
         try
         {
-            var result = await RunYtDlpAsync(BuildArguments(url, tempDirectory, options), progress, cancellationToken);
+            var arguments = BuildArguments(url, tempDirectory, settings.FileNameTemplate, options);
+            var result = await RunYtDlpAsync(arguments, progress, cancellationToken);
             if (!result.Success || result.FilePath is null) return result;
 
             return DownloadResult.Completed(MoveToDestination(result.FilePath, outputDirectory));
@@ -114,7 +113,7 @@ public sealed class DownloadService(YtDlpRunner runner)
         return destination;
     }
 
-    private static IEnumerable<string> BuildArguments(Uri url, string workDirectory, DownloadOptions options)
+    private static IEnumerable<string> BuildArguments(Uri url, string workDirectory, string outputTemplate, DownloadOptions options)
     {
         yield return "--no-mtime";
 
@@ -126,7 +125,7 @@ public sealed class DownloadService(YtDlpRunner runner)
         yield return "-P";
         yield return workDirectory;
         yield return "-o";
-        yield return OutputTemplate;
+        yield return outputTemplate;
 
         // --print silencia la salida normal; --progress la vuelve a activar con nuestro formato
         yield return "--print";

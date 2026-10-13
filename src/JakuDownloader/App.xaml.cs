@@ -21,17 +21,26 @@ public partial class App : Application
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>
             {
+                services.AddSingleton<SettingsService>();
                 services.AddSingleton<ToolLocator>();
+                services.AddSingleton<ToolInstaller>();
                 services.AddSingleton<YtDlpRunner>();
                 services.AddSingleton<VideoInfoService>();
                 services.AddSingleton<DownloadService>();
                 services.AddSingleton<NotificationService>();
+                services.AddSingleton<FolderPickerService>();
                 services.AddSingleton<DownloadViewModel>();
+                services.AddSingleton<ToolsViewModel>();
                 services.AddTransient<SettingsViewModel>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();
     }
+
+    /// <summary>
+    /// Ventana principal, para los dialogos de Windows que necesitan saber sobre que ventana abrirse.
+    /// </summary>
+    public static nint MainWindowHandle { get; private set; }
 
     public static T GetService<T>() where T : notnull
         => ((App)Current)._host.Services.GetRequiredService<T>();
@@ -43,9 +52,10 @@ public partial class App : Application
 
         // Se queda antes de la ventana a proposito: tarda poco (~30 ms con 30 restos) y asi
         // no puede pisarse con una descarga nueva
-        DownloadService.CleanupStaleTempFiles(AppPaths.DownloadDirectory);
+        DownloadService.CleanupStaleTempFiles(GetService<SettingsService>().DownloadDirectory);
 
         _window = GetService<MainWindow>();
+        MainWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _window.Closed += (_, _) => _host.Dispose();
         _window.Activate();
 
