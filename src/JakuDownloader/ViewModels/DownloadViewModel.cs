@@ -200,7 +200,8 @@ public sealed partial class DownloadViewModel : ObservableObject
     [ObservableProperty]
     public partial int AudioCodecIndex { get; set; }
 
-    public bool IsVideo => MediaKindIndex == 0;
+    // Solo "Solo audio" (1) es audio: un -1 pasajero del ComboBox no tiene que cambiar el tipo
+    public bool IsVideo => MediaKindIndex != 1;
 
     public bool IsAudio => !IsVideo;
 
@@ -360,7 +361,7 @@ public sealed partial class DownloadViewModel : ObservableObject
         if (missingTools.Count > 0)
         {
             ShowResult(InfoBarSeverity.Error, "Faltan herramientas",
-                $"Para descargar hace falta {string.Join(" y ", missingTools.Select(ToolLocator.DisplayName))}. "
+                $"Para descargar {(missingTools.Count == 1 ? "hace" : "hacen")} falta {Formatters.JoinWithAnd(missingTools.Select(ToolLocator.DisplayName).ToList())}. "
                 + "Usá el botón \"Descargar herramientas\" de arriba.");
             return;
         }

@@ -47,7 +47,10 @@ public sealed class YtDlpRunner(ToolLocator toolLocator, SettingsService setting
     public static string? ExtractError(string stderr)
     {
         var lines = stderr.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var error = lines.LastOrDefault(line => line.StartsWith("ERROR:", StringComparison.Ordinal));
+        var errors = lines.Where(line => line.StartsWith("ERROR:", StringComparison.Ordinal)).ToList();
+
+        // Con --ignore-errors puede haber varios: un subtitulo que fallo no es el motivo por el que fallo el video
+        var error = errors.LastOrDefault(line => !line.Contains("subtitles", StringComparison.OrdinalIgnoreCase)) ?? errors.LastOrDefault();
         return error is not null ? error["ERROR:".Length..].Trim() : lines.LastOrDefault();
     }
 

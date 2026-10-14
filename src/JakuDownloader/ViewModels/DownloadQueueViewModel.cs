@@ -249,7 +249,10 @@ public sealed partial class DownloadQueueViewModel : ObservableObject
         {
             var next = Items.Where(item => item.Status == DownloadStatus.Queued).OrderBy(item => item.Sequence).FirstOrDefault();
             if (next is null) break;
-            _running[next] = RunAsync(next);
+
+            // Si falla antes de su primer await (por ejemplo, destino desconectado) ya termino y se saco de _running
+            var task = RunAsync(next);
+            if (!task.IsCompleted) _running[next] = task;
         }
 
         OnQueueChanged();

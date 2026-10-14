@@ -21,4 +21,11 @@ public static class Formatters
         var time = TimeSpan.FromSeconds(seconds);
         return time.TotalHours >= 1 ? time.ToString(@"h\:mm\:ss") : time.ToString(@"m\:ss");
     }
+
+    /// <summary>
+    /// "a", "a y b", "a, b y c".
+    /// </summary>
+    public static string JoinWithAnd(IReadOnlyList<string> items) => items.Count <= 1
+        ? string.Concat(items)
+        : $"{string.Join(", ", items.Take(items.Count - 1))} y {items[^1]}";
 }

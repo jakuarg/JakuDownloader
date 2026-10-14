@@ -36,6 +36,7 @@
                     Title="{x:Bind ViewModel.ErrorTitle, Mode=OneWay}"
                     Margin="0,0,0,8"
                     IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
+                    Visibility="{x:Bind ViewModel.IsErrorOpen, Mode=OneWay}"
                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
                     Severity="Warning" />
 
@@ -43,6 +44,7 @@
                     Title="{x:Bind ViewModel.Tools.InstallResultTitle, Mode=OneWay}"
                     Margin="0,0,0,8"
                     IsOpen="{x:Bind ViewModel.Tools.IsInstallResultOpen, Mode=TwoWay}"
+                    Visibility="{x:Bind ViewModel.Tools.IsInstallResultOpen, Mode=OneWay}"
                     Message="{x:Bind ViewModel.Tools.InstallResultMessage, Mode=OneWay}"
                     Severity="{x:Bind ViewModel.Tools.InstallResultSeverity, Mode=OneWay}" />
 
@@ -244,7 +246,7 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                <toolkit:SettingsCard Description="Para no ocupar toda la conexión mientras se descarga" Header="Límite de velocidad">
+                <toolkit:SettingsCard Description="Velocidad máxima de cada descarga: con 3 a la vez se usa hasta el triple" Header="Límite de velocidad">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xEC4A;" />
                     </toolkit:SettingsCard.HeaderIcon>

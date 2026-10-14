@@ -66,7 +66,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnCookiesBrowserIndexChanged(int value)
     {
-        if (_loading) return;
+        // -1: el ComboBox se quedo un momento sin seleccion; no es una eleccion del usuario y no tiene que borrar nada
+        if (_loading || value < 0) return;
 
         var browser = value >= 1 && value <= NetworkOptions.Browsers.Count ? NetworkOptions.Browsers[value - 1].Id : null;
         if (browser == _settings.Current.CookiesBrowser) return;
@@ -176,7 +177,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void SaveRateLimit()
     {
-        if (_loading) return;
+        if (_loading || RateLimitUnitIndex < 0) return;
 
         var rateLimit = IsRateLimitEnabled ? NetworkOptions.FormatRateLimit(RateLimitValue, RateLimitUnitIndex == 1) : null;
 

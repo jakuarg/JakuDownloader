@@ -46,6 +46,7 @@
                     Margin="0,0,0,12"
                     IsClosable="False"
                     IsOpen="{x:Bind Tools.IsMissingBannerOpen, Mode=OneWay}"
+                    Visibility="{x:Bind Tools.IsMissingBannerOpen, Mode=OneWay}"
                     Message="{x:Bind Tools.MissingToolsMessage, Mode=OneWay}"
                     Severity="Warning">
                     <InfoBar.ActionButton>
@@ -61,6 +62,7 @@
                     Margin="0,0,0,12"
                     IsClosable="False"
                     IsOpen="{x:Bind Tools.IsInstalling, Mode=OneWay}"
+                    Visibility="{x:Bind Tools.IsInstalling, Mode=OneWay}"
                     Message="{x:Bind Tools.InstallStatus, Mode=OneWay}"
                     Severity="Informational">
                     <ProgressBar
@@ -74,6 +76,7 @@
                     Title="{x:Bind Tools.InstallResultTitle, Mode=OneWay}"
                     Margin="0,0,0,12"
                     IsOpen="{x:Bind Tools.IsInstallResultOpen, Mode=TwoWay}"
+                    Visibility="{x:Bind Tools.IsInstallResultOpen, Mode=OneWay}"
                     Message="{x:Bind Tools.InstallResultMessage, Mode=OneWay}"
                     Severity="{x:Bind Tools.InstallResultSeverity, Mode=OneWay}" />
 
@@ -157,6 +160,7 @@
                 <InfoBar
                     Margin="0,12,0,0"
                     IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
+                    Visibility="{x:Bind ViewModel.IsResultOpen, Mode=OneWay}"
                     Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
                     Severity="{x:Bind ViewModel.ResultSeverity, Mode=OneWay}"
                     Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}">
@@ -468,13 +472,14 @@
                             Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
                             <StackPanel Spacing="4">
                                 <TextBox
-                                    MinWidth="{StaticResource OptionWidth}"
+                                    Width="{StaticResource OptionWidth}"
                                     AutomationProperties.Name="Idiomas de los subtítulos"
                                     IsEnabled="{x:Bind ViewModel.DownloadSubtitles, Mode=OneWay}"
                                     PlaceholderText="es, en"
                                     Text="{x:Bind ViewModel.SubtitleLanguagesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <!--  Mismo ancho que la caja: si no, el texto largo se corta en el borde de la tarjeta  -->
                                 <TextBlock
-                                    MaxWidth="260"
+                                    Width="{StaticResource OptionWidth}"
                                     Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Text="{x:Bind ViewModel.SubtitleLanguagesError, Mode=OneWay}"
@@ -558,7 +563,11 @@
             CloseButtonText="Listo"
             DefaultButton="Close"
             Title="Elegir videos">
-            <Grid Width="520" RowSpacing="8">
+            <!--  El maximo por defecto (548 con margenes) cortaba los botones y las duraciones  -->
+            <ContentDialog.Resources>
+                <x:Double x:Key="ContentDialogMaxWidth">640</x:Double>
+            </ContentDialog.Resources>
+            <Grid Width="560" RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />

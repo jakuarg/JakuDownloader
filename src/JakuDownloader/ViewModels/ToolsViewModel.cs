@@ -87,16 +87,17 @@ public sealed partial class ToolsViewModel : ObservableObject
         get
         {
             if (!HasMissingTools) return string.Empty;
-            var names = string.Join(", ", MissingTools.Select(ToolLocator.DisplayName));
+            var names = Formatters.JoinWithAnd(MissingTools.Select(ToolLocator.DisplayName).ToList());
             var size = MissingTools.Sum(ToolInstaller.ApproximateSizeMegabytes);
-            return $"Para descargar hacen falta {names}. Se bajan una sola vez desde sus páginas oficiales (unos {size} MB).";
+            var verb = MissingTools.Count == 1 ? "hace" : "hacen";
+            return $"Para descargar {verb} falta {names}. Se bajan una sola vez desde sus páginas oficiales (unos {size} MB).";
         }
     }
 
     public string InstallDescription => IsInstalling
         ? InstallStatus
         : HasMissingTools
-            ? $"Faltan: {string.Join(", ", MissingTools.Select(ToolLocator.DisplayName))}"
+            ? $"Faltan: {Formatters.JoinWithAnd(MissingTools.Select(ToolLocator.DisplayName).ToList())}"
             : "Están todas instaladas";
 
     public string ToolsDirectory => _toolLocator.ToolsDirectory;

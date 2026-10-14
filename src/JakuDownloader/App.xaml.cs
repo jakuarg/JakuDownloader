@@ -55,6 +55,13 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Si ya hay una ventana abierta, se la trae al frente y esta instancia se cierra sin tocar nada
+        if (!SingleInstance.TryClaim())
+        {
+            Exit();
+            return;
+        }
+
         // Tiene que ir antes de crear la ventana
         AppIdentity.Apply();
 
