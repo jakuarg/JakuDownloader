@@ -30,27 +30,33 @@ public sealed class NotificationService
     }
 
     /// <summary>
-    /// Muestra un toast. Al hacer clic, o en el boton "Abrir carpeta", se abre <paramref name="folder"/>.
+    /// Muestra un toast. Con <paramref name="folder"/>, al hacer clic o en el boton "Abrir carpeta" se abre esa carpeta.
     /// </summary>
-    public void Show(string title, string message, string folder)
+    public void Show(string title, string message, string? folder = null)
     {
         if (_notifier is null) return;
 
-        // Activacion por protocolo: Windows abre la carpeta sin volver a lanzar la app
-        var folderUri = Escape(new Uri(folder).AbsoluteUri);
-        var xml = $"""
-            <toast activationType="protocol" launch="{folderUri}">
+        var visual = $"""
               <visual>
                 <binding template="ToastGeneric">
                   <text>{Escape(title)}</text>
                   <text>{Escape(message)}</text>
                 </binding>
               </visual>
-              <actions>
-                <action content="Abrir carpeta" activationType="protocol" arguments="{folderUri}" />
-              </actions>
-            </toast>
             """;
+
+        // Activacion por protocolo: Windows abre la carpeta sin volver a lanzar la app
+        var folderUri = folder is null ? null : Escape(new Uri(folder).AbsoluteUri);
+        var xml = folderUri is null
+            ? $"<toast>{visual}</toast>"
+            : $"""
+                <toast activationType="protocol" launch="{folderUri}">
+                {visual}
+                  <actions>
+                    <action content="Abrir carpeta" activationType="protocol" arguments="{folderUri}" />
+                  </actions>
+                </toast>
+                """;
 
         try
         {

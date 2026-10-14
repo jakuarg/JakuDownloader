@@ -32,7 +32,60 @@ public sealed partial class SettingsViewModel : ObservableObject
         IsRateLimitEnabled = network.RateLimit is not null;
         RateLimitValue = rate;
         RateLimitUnitIndex = megabytes ? 1 : 0;
+
+        KeepRunningInBackground = settings.KeepRunningInBackground;
+        StartWithWindows = ReadStartWithWindows();
         _loading = false;
+    }
+
+    // Segundo plano
+
+    [ObservableProperty]
+    public partial bool KeepRunningInBackground { get; set; }
+
+    partial void OnKeepRunningInBackgroundChanged(bool value)
+    {
+        if (_loading || value == _settings.KeepRunningInBackground) return;
+
+        IsErrorOpen = false;
+
+        // Activado es el valor por defecto: se guarda como null
+        TrySave(current => current with { KeepRunningInBackground = value ? null : false });
+    }
+
+    [ObservableProperty]
+    public partial bool StartWithWindows { get; set; }
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        if (_loading || value == ReadStartWithWindows()) return;
+
+        IsErrorOpen = false;
+        try
+        {
+            if (value) StartupRegistration.Enable();
+            else StartupRegistration.Disable();
+        }
+        catch (Exception ex) when (StartupRegistration.IsRegistryError(ex))
+        {
+            ShowError("No se pudo cambiar el inicio con Windows",
+                "Windows no dejó modificar los programas que arrancan al iniciar sesión. Probá desde el Administrador de tareas, en Aplicaciones de arranque.");
+
+            // El interruptor vuelve a lo que de verdad quedo; el cambio no se repite porque ya coincide
+            StartWithWindows = ReadStartWithWindows();
+        }
+    }
+
+    private static bool ReadStartWithWindows()
+    {
+        try
+        {
+            return StartupRegistration.IsEnabled;
+        }
+        catch (Exception ex) when (StartupRegistration.IsRegistryError(ex))
+        {
+            return false;
+        }
     }
 
     // Red: cookies

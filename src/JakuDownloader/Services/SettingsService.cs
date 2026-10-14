@@ -28,6 +28,11 @@ public sealed class SettingsService
 
     public int MaxConcurrentDownloads => Math.Clamp(Current.MaxConcurrentDownloads ?? DefaultMaxConcurrentDownloads, 1, 10);
 
+    /// <summary>
+    /// Cerrar la ventana la oculta y las descargas siguen. Activado por defecto.
+    /// </summary>
+    public bool KeepRunningInBackground => Current.KeepRunningInBackground ?? true;
+
     public void Update(Func<AppSettings, AppSettings> change)
     {
         Current = change(Current);

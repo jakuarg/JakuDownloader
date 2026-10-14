@@ -55,8 +55,13 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Si ya hay una ventana abierta, se la trae al frente y esta instancia se cierra sin tocar nada
-        if (!SingleInstance.TryClaim())
+        // Al iniciar sesion Windows abre la app con este argumento: arranca oculta, solo con el icono junto al reloj
+        var startInBackground = Environment.GetCommandLineArgs().Skip(1)
+            .Contains(StartupRegistration.BackgroundArgument, StringComparer.OrdinalIgnoreCase);
+
+        // Si ya esta abierta, se muestra esa ventana y esta instancia se cierra sin tocar nada.
+        // Desde el inicio de Windows no se muestra: el usuario no la pidio
+        if (!SingleInstance.TryClaim(openExisting: !startInBackground))
         {
             Exit();
             return;
@@ -68,11 +73,13 @@ public partial class App : Application
         // Se queda antes de la ventana a proposito: tarda poco (~30 ms con 30 restos) y asi
         // no puede pisarse con una descarga nueva
         DownloadService.CleanupStaleTempFiles(GetService<SettingsService>().DownloadDirectory);
+        StartupRegistration.TryRefreshPath();
 
         _window = GetService<MainWindow>();
         MainWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(_window);
         _window.Closed += (_, _) => _host.Dispose();
-        _window.Activate();
+        if (startInBackground) _window.StartInBackground();
+        else _window.BringToFront();
 
         // Las notificaciones (~100 ms) recien hacen falta al iniciar una descarga
         _window.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => GetService<NotificationService>().Initialize());

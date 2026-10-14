@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.10.00 (en desarrollo)
+**Versión actual:** v00.11.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -30,6 +30,10 @@ Red
 - Uso de cookies del navegador, para videos con restricción de edad o que requieren sesión
 - Proxies HTTP y SOCKS
 - Límite de velocidad de descarga
+
+Segundo plano
+- Al cerrar la ventana las descargas siguen, con un ícono junto al reloj
+- Inicio con Windows, oculta y lista para descargar
 
 > Sobre VPN: la app no gestiona conexiones VPN. Si hay una VPN activa en el sistema, las descargas pasan por ella como cualquier otro tráfico. Para redirigir solo las descargas de Jaku Downloader se usa la opción de proxy.
 
@@ -95,6 +99,11 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Cookies desde el navegador o desde archivo
 - [x] Proxy HTTP / SOCKS
 - [x] Límite de velocidad
+
+### v00.11.00 - Segundo plano
+- [x] Ícono junto al reloj: abrir, pausar o reanudar todo, carpeta de descargas y salir
+- [x] Cerrar la ventana la oculta y las descargas siguen (se puede desactivar)
+- [x] Iniciar con Windows, oculta
 
 ### v01.00.00 - Primera versión estable
 - [ ] Revisión general de errores y textos
@@ -265,7 +274,9 @@ Puntos a tener en cuenta:
 - Listas y canales: la raíz de un canal (`/@canal`) devuelve sus pestañas, no sus videos, así que se pide `/@canal/videos`. Se cargan como máximo 500 videos (unos 5 s; un canal grande completo tarda minutos). Un video abierto desde una lista (`watch?v=…&list=…` o `youtu.be/…?list=…`) se baja solo, salvo que se active "Bajar la lista completa". Los videos de una lista se guardan por defecto en una subcarpeta con su nombre.
 - Idiomas de subtítulos: se pasan como códigos exactos (`es`, `en`, `es-419`). Un patrón como `es.*` también trae las traducciones automáticas de YouTube (`es-en`: español traducido del inglés), que son decenas de pedidos y terminan en "429 Too Many Requests". yt-dlp compara sin distinguir mayúsculas, así que no hay patrón que separe regiones (`en-US`) de traducciones (`en-de`). Con `--ignore-errors`, si falla un subtítulo yt-dlp termina con error aunque el video esté completo: la descarga cuenta como exitosa si el archivo final existe.
 - Red: navegador y archivo de cookies se excluyen; si hay archivo, gana el archivo. Chrome, Edge y los basados en Chromium cifran las cookies (app-bound encryption) y yt-dlp a veces no puede leerlas, o encuentra la base bloqueada si el navegador está abierto: Firefox o un `cookies.txt` de Netscape son lo más confiable. yt-dlp vuelve a escribir el `cookies.txt` al terminar. La descarga de herramientas (`ToolInstaller`) todavía no usa el proxy.
-- Una sola instancia (mutex `Local\JakuDownloader.SingleInstance`): al abrir la app otra vez se trae al frente la ventana existente. Dos instancias se pisarían, porque al arrancar se borran los restos de `.jaku-temp`, que serían las descargas en curso de la otra.
+- Una sola instancia (mutex `Local\JakuDownloader.SingleInstance`): al abrir la app otra vez se muestra la ventana existente, aunque esté oculta. Dos instancias se pisarían, porque al arrancar se borran los restos de `.jaku-temp`, que serían las descargas en curso de la otra.
+- Segundo plano: WinUI 3 no trae ícono de bandeja, así que `TrayIcon` usa `Shell_NotifyIcon` con una ventana Win32 oculta. Es una ventana común y no "message-only", porque esas no reciben `TaskbarCreated` cuando Explorer se reinicia y el ícono desaparecería. La segunda instancia busca esa ventana por su clase y le manda un mensaje para que muestre la principal: una ventana oculta no aparece en `Process.MainWindowHandle`. El menú es el nativo de Win32; `SetPreferredAppMode` (uxtheme, sin documentar) hace que siga el tema oscuro.
+- Inicio con Windows: valor `Jaku Downloader` en `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` con `--background`, que arranca sin mostrar la ventana. Si el usuario lo deshabilita desde el Administrador de tareas, Windows lo anota en `Explorer\StartupApproved\Run` (primer byte impar) y la app lo muestra apagado. Si la app se mueve de carpeta, la ruta se corrige al abrirla.
 - Historial: `%LOCALAPPDATA%\Jaku Downloader\history.json`, hasta 1000 entradas. Guarda las opciones de cada descarga para "Descargar de nuevo". Quitar del historial no borra el archivo.
 - Cola: corre en el hilo de la interfaz y arranca las más viejas primero, hasta el límite de Configuración (3 por defecto). Pausar mata el proceso pero conserva la carpeta de trabajo; al reanudar, yt-dlp retoma desde los `.part`. La cola no se guarda: al cerrar la app se cancela lo pendiente, con confirmación.
 - Herramientas: se buscan primero en `tools\` junto al ejecutable y después en `%LOCALAPPDATA%\Jaku Downloader\tools`. Si la carpeta de la app no admite escritura (por ejemplo en `Program Files`), las que faltan se instalan en la del usuario. La app las baja de los mismos releases que `scripts\get-tools.ps1` y verifica el SHA-256 antes de instalarlas.

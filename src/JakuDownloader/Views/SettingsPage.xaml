@@ -125,6 +125,25 @@
                         Value="{x:Bind ViewModel.MaxConcurrentDownloads, Mode=TwoWay}" />
                 </toolkit:SettingsCard>
 
+                <!--  Segundo plano  -->
+                <StackPanel Style="{StaticResource SectionHeaderStyle}">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Segundo plano" />
+                </StackPanel>
+
+                <toolkit:SettingsCard Description="Al cerrar la ventana, las descargas siguen y la app queda en el ícono junto al reloj. Para salir del todo, elegí Salir en su menú" Header="Seguir en segundo plano al cerrar">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE73F;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ToggleSwitch AutomationProperties.Name="Seguir en segundo plano al cerrar" IsOn="{x:Bind ViewModel.KeepRunningInBackground, Mode=TwoWay}" />
+                </toolkit:SettingsCard>
+
+                <toolkit:SettingsCard Description="Arranca oculta al iniciar sesión, lista para descargar desde el ícono junto al reloj" Header="Iniciar con Windows">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7E8;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ToggleSwitch AutomationProperties.Name="Iniciar con Windows" IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" />
+                </toolkit:SettingsCard>
+
                 <!--  Herramientas  -->
                 <StackPanel Style="{StaticResource SectionHeaderStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Herramientas" />

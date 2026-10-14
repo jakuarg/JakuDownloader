@@ -17,21 +17,33 @@ public static class SingleInstance
     private static Mutex? s_mutex;
 
     /// <summary>
-    /// True si esta es la primera instancia. Si no, trae al frente la ventana que ya estaba abierta.
+    /// True si esta es la primera instancia. Si no y <paramref name="openExisting"/> es true, abre la ventana que ya estaba.
     /// </summary>
-    public static bool TryClaim()
+    public static bool TryClaim(bool openExisting)
     {
         s_mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
         if (createdNew) return true;
 
         s_mutex.Dispose();
         s_mutex = null;
-        ActivateExistingWindow();
+        if (openExisting) OpenExistingWindow();
         return false;
     }
 
-    private static void ActivateExistingWindow()
+    private static void OpenExistingWindow()
     {
+        // La otra instancia puede tener la ventana oculta en segundo plano: se le pide que la muestre ella misma
+        var trayWindow = NativeMethods.FindWindowW(TrayIcon.WindowClassName, null);
+        if (trayWindow != 0)
+        {
+            // Windows solo deja pasar al frente a quien recibe permiso de la app que esta al frente, que es esta
+            NativeMethods.GetWindowThreadProcessId(trayWindow, out var processId);
+            NativeMethods.AllowSetForegroundWindow(processId);
+            NativeMethods.PostMessageW(trayWindow, TrayIcon.OpenMessage, 0, 0);
+            return;
+        }
+
+        // Recien abierta, todavia sin ventana oculta: se trae al frente la principal
         using var current = Process.GetCurrentProcess();
         foreach (var process in Process.GetProcessesByName(current.ProcessName))
         {
