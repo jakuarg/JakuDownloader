@@ -38,6 +38,11 @@ public sealed partial class DownloadViewModel : ObservableObject
         _toolLocator = toolLocator;
         Queue = queue;
 
+        var defaults = Helpers.SponsorBlockCategories.Default.Split(',');
+        SponsorBlockCategories = Helpers.SponsorBlockCategories.All
+            .Select(category => new SponsorBlockCategoryViewModel(category.Id, category.Label, defaults.Contains(category.Id), OnSponsorBlockCategoryChanged))
+            .ToList();
+
         // La carpeta se puede cambiar desde Configuracion; lo proximo que se agregue a la cola usa la nueva
         DownloadDirectory = settings.DownloadDirectory;
         settings.Changed += (_, _) => DownloadDirectory = settings.DownloadDirectory;
@@ -89,15 +94,102 @@ public sealed partial class DownloadViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsVideo))]
     [NotifyPropertyChangedFor(nameof(IsAudio))]
+    [NotifyPropertyChangedFor(nameof(ThumbnailDescription))]
+    [NotifyPropertyChangedFor(nameof(SubtitleLanguagesError))]
+    [NotifyPropertyChangedFor(nameof(HasSubtitleLanguagesError))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
     public partial int MediaKindIndex { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AreCodecOptionsEnabled))]
     [NotifyPropertyChangedFor(nameof(CodecsDescription))]
+    [NotifyPropertyChangedFor(nameof(ThumbnailDescription))]
     public partial int VideoFormatIndex { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThumbnailDescription))]
     public partial int AudioFormatIndex { get; set; }
+
+    // Subtitulos, capitulos y metadatos
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleLanguagesError))]
+    [NotifyPropertyChangedFor(nameof(HasSubtitleLanguagesError))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
+    public partial bool DownloadSubtitles { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleLanguagesError))]
+    [NotifyPropertyChangedFor(nameof(HasSubtitleLanguagesError))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
+    public partial string SubtitleLanguagesText { get; set; } = SubtitleLanguages.Default;
+
+    [ObservableProperty]
+    public partial bool AutomaticSubtitles { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool EmbedSubtitles { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool EmbedChapters { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool EmbedMetadata { get; set; } = true;
+
+    /// <summary>
+    /// Error de los idiomas, solo si los subtitulos estan pedidos (en solo audio no se usan).
+    /// </summary>
+    public string SubtitleLanguagesError => IsVideo && DownloadSubtitles ? SubtitleLanguages.Validate(SubtitleLanguagesText) ?? string.Empty : string.Empty;
+
+    public bool HasSubtitleLanguagesError => SubtitleLanguagesError.Length > 0;
+
+    // SponsorBlock
+
+    /// <summary>
+    /// 0: nada, 1: marcar como capitulos, 2: quitar. Indice para el ComboBox.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSponsorBlockOn))]
+    [NotifyPropertyChangedFor(nameof(SponsorBlockDescription))]
+    [NotifyPropertyChangedFor(nameof(SponsorBlockError))]
+    [NotifyPropertyChangedFor(nameof(HasSponsorBlockError))]
+    [NotifyCanExecuteChangedFor(nameof(DownloadCommand))]
+    public partial int SponsorBlockModeIndex { get; set; }
+
+    public IReadOnlyList<SponsorBlockCategoryViewModel> SponsorBlockCategories { get; }
+
+    private SponsorBlockMode SponsorBlockMode => SponsorBlockModeIndex switch
+    {
+        1 => SponsorBlockMode.Mark,
+        2 => SponsorBlockMode.Remove,
+        _ => SponsorBlockMode.Off,
+    };
+
+    public bool IsSponsorBlockOn => SponsorBlockMode != SponsorBlockMode.Off;
+
+    public string SponsorBlockDescription => SponsorBlockMode switch
+    {
+        SponsorBlockMode.Mark => "Se agregan como capítulos para saltarlos desde el reproductor",
+        SponsorBlockMode.Remove => "Se cortan del archivo. El corte puede correrse un poco del punto exacto",
+        _ => "Segmentos patrocinados que marca la comunidad",
+    };
+
+    public string SponsorBlockError => IsSponsorBlockOn && !SponsorBlockCategories.Any(category => category.IsSelected)
+        ? "Elegí al menos una categoría."
+        : string.Empty;
+
+    public bool HasSponsorBlockError => SponsorBlockError.Length > 0;
+
+    private void OnSponsorBlockCategoryChanged()
+    {
+        OnPropertyChanged(nameof(SponsorBlockError));
+        OnPropertyChanged(nameof(HasSponsorBlockError));
+        DownloadCommand.NotifyCanExecuteChanged();
+    }
+
+    public string ThumbnailDescription => CurrentOptions.SupportsThumbnail
+        ? "Portada, título, canal y fecha dentro del archivo"
+        : "Este formato no admite portada: se agregan solo título, canal y fecha";
 
     [ObservableProperty]
     public partial int ResolutionIndex { get; set; }
@@ -126,7 +218,15 @@ public sealed partial class DownloadViewModel : ObservableObject
         Pick(AudioFormats, AudioFormatIndex),
         Pick(Resolutions, ResolutionIndex),
         Pick(VideoCodecs, VideoCodecIndex),
-        Pick(AudioCodecs, AudioCodecIndex));
+        Pick(AudioCodecs, AudioCodecIndex),
+        Subtitles: IsVideo && DownloadSubtitles,
+        SubtitleLanguages: SubtitleLanguages.Normalize(SubtitleLanguagesText),
+        AutomaticSubtitles: AutomaticSubtitles,
+        EmbedSubtitles: EmbedSubtitles,
+        EmbedChapters: EmbedChapters,
+        EmbedMetadata: EmbedMetadata,
+        SponsorBlock: SponsorBlockMode,
+        SponsorBlockCategories: string.Join(',', SponsorBlockCategories.Where(category => category.IsSelected).Select(category => category.Id)));
 
     // Un ComboBox puede informar -1 mientras cambia; se toma la primera opcion
     private static T Pick<T>(T[] values, int index) => values[Math.Clamp(index, 0, values.Length - 1)];
@@ -235,7 +335,7 @@ public sealed partial class DownloadViewModel : ObservableObject
 
     private bool CanDownload()
     {
-        if (string.IsNullOrWhiteSpace(Url)) return false;
+        if (string.IsNullOrWhiteSpace(Url) || HasSubtitleLanguagesError || HasSponsorBlockError) return false;
 
         // Una lista se puede agregar recien cuando se cargaron sus videos y hay alguno elegido
         return !IsPlaylistMode || (IsPlaylistPreviewReady && SelectedCount > 0);

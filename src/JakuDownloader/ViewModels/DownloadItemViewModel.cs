@@ -231,6 +231,12 @@ public sealed partial class DownloadItemViewModel : ObservableObject
             DownloadStage.Merging => "Uniendo video y audio...",
             DownloadStage.ConvertingAudio when Options.ConvertsAudio => $"Convirtiendo a {Options.Extension.ToUpperInvariant()}...",
             DownloadStage.ConvertingAudio => "Preparando el audio...",
+            DownloadStage.EmbeddingSubtitles => "Incrustando subtítulos...",
+            DownloadStage.AddingMetadata => "Agregando capítulos y metadatos...",
+            DownloadStage.EmbeddingThumbnail => "Agregando la miniatura...",
+            DownloadStage.CheckingSponsorBlock => "Consultando SponsorBlock...",
+            DownloadStage.ApplyingSponsorBlock when Options.SponsorBlock == SponsorBlockMode.Remove => "Quitando segmentos...",
+            DownloadStage.ApplyingSponsorBlock => "Marcando segmentos...",
             _ => "Procesando...",
         };
 

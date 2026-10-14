@@ -77,6 +77,11 @@ public static class YtDlpOutput
             {
                 "Merger" => DownloadStage.Merging,
                 "ExtractAudio" => DownloadStage.ConvertingAudio,
+                "EmbedSubtitle" => DownloadStage.EmbeddingSubtitles,
+                "Metadata" => DownloadStage.AddingMetadata,
+                "EmbedThumbnail" => DownloadStage.EmbeddingThumbnail,
+                "SponsorBlock" => DownloadStage.CheckingSponsorBlock,
+                "ModifyChapters" => DownloadStage.ApplyingSponsorBlock,
                 _ => DownloadStage.Processing,
             };
             progress = new DownloadProgress(stage);

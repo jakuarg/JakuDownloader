@@ -8,5 +8,10 @@ public enum DownloadStage
     Downloading,
     Merging,
     ConvertingAudio,
+    EmbeddingSubtitles,
+    AddingMetadata,
+    EmbeddingThumbnail,
+    CheckingSponsorBlock,
+    ApplyingSponsorBlock,
     Processing,
 }

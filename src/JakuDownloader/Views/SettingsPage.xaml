@@ -178,56 +178,89 @@
                 <!--  Red  -->
                 <StackPanel Style="{StaticResource SectionHeaderStyle}">
                     <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Red" />
-                    <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Network}" Version="v00.10" />
                 </StackPanel>
 
-                <toolkit:SettingsExpander Description="Para videos con restricción de edad o que piden iniciar sesión" Header="Cookies">
+                <toolkit:SettingsExpander Description="{x:Bind ViewModel.CookiesDescription, Mode=OneWay}" Header="Cookies">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE72E;" />
                     </toolkit:SettingsExpander.HeaderIcon>
                     <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard Description="Usa la sesión que ya tenés abierta en ese navegador" Header="Tomar cookies del navegador">
+                        <toolkit:SettingsCard Description="Usa la sesión de YouTube que ya tenés abierta en ese navegador" Header="Tomar cookies del navegador">
                             <ComboBox
                                 MinWidth="{StaticResource OptionWidth}"
-                                IsEnabled="{x:Bind helpers:Features.Network}"
-                                SelectedIndex="0">
-                                <x:String>No usar</x:String>
-                                <x:String>Chrome</x:String>
-                                <x:String>Edge</x:String>
-                                <x:String>Firefox</x:String>
-                                <x:String>Brave</x:String>
-                                <x:String>Opera</x:String>
-                                <x:String>Vivaldi</x:String>
-                            </ComboBox>
+                                AutomationProperties.Name="Navegador para las cookies"
+                                ItemsSource="{x:Bind ViewModel.CookiesBrowserOptions}"
+                                SelectedIndex="{x:Bind ViewModel.CookiesBrowserIndex, Mode=TwoWay}" />
                         </toolkit:SettingsCard>
-                        <toolkit:SettingsCard Description="Archivo cookies.txt en formato Netscape" Header="O usar un archivo de cookies">
-                            <Button Content="Elegir archivo..." IsEnabled="{x:Bind helpers:Features.Network}" />
+                        <toolkit:SettingsCard Description="{x:Bind ViewModel.CookiesFileText, Mode=OneWay}" Header="O usar un archivo cookies.txt">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Command="{x:Bind ViewModel.ChooseCookiesFileCommand}" Content="Elegir archivo..." />
+                                <Button
+                                    Command="{x:Bind ViewModel.ClearCookiesFileCommand}"
+                                    Content="Quitar"
+                                    Visibility="{x:Bind ViewModel.HasCookiesFile, Mode=OneWay}" />
+                            </StackPanel>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                <toolkit:SettingsCard Description="Solo las descargas de la app pasan por el proxy (HTTP o SOCKS)" Header="Proxy">
-                    <toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsExpander Description="{x:Bind ViewModel.ProxyDescription, Mode=OneWay}" Header="Proxy">
+                    <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE968;" />
-                    </toolkit:SettingsCard.HeaderIcon>
-                    <TextBox
-                        MinWidth="260"
-                        IsEnabled="{x:Bind helpers:Features.Network}"
-                        PlaceholderText="socks5://127.0.0.1:1080" />
-                </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard
+                            HorizontalContentAlignment="Stretch"
+                            ContentAlignment="Vertical"
+                            Header="Dirección">
+                            <StackPanel Spacing="8">
+                                <TextBox
+                                    AutomationProperties.Name="Dirección del proxy"
+                                    FontFamily="Consolas"
+                                    PlaceholderText="socks5://127.0.0.1:1080"
+                                    Text="{x:Bind ViewModel.ProxyText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Text="{x:Bind ViewModel.ProxyError, Mode=OneWay}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{x:Bind ViewModel.HasProxyError, Mode=OneWay}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="Con una VPN activa en todo el sistema no hace falta: el proxy sirve para desviar solo el tráfico de la app."
+                                    TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button
+                                        Command="{x:Bind ViewModel.SaveProxyCommand}"
+                                        Content="Guardar"
+                                        Style="{StaticResource AccentButtonStyle}" />
+                                    <Button
+                                        Command="{x:Bind ViewModel.ClearProxyCommand}"
+                                        Content="Quitar"
+                                        Visibility="{x:Bind ViewModel.HasProxy, Mode=OneWay}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
 
                 <toolkit:SettingsCard Description="Para no ocupar toda la conexión mientras se descarga" Header="Límite de velocidad">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xEC4A;" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ToggleSwitch IsEnabled="{x:Bind helpers:Features.Network}" />
+                        <ToggleSwitch AutomationProperties.Name="Limitar la velocidad" IsOn="{x:Bind ViewModel.IsRateLimitEnabled, Mode=TwoWay}" />
                         <NumberBox
-                            IsEnabled="{x:Bind helpers:Features.Network}"
-                            Minimum="1"
+                            AutomationProperties.Name="Velocidad máxima"
+                            IsEnabled="{x:Bind ViewModel.IsRateLimitEnabled, Mode=OneWay}"
+                            Minimum="0.1"
+                            SmallChange="1"
                             SpinButtonPlacementMode="Compact"
-                            Value="5" />
-                        <ComboBox IsEnabled="{x:Bind helpers:Features.Network}" SelectedIndex="1">
+                            Value="{x:Bind ViewModel.RateLimitValue, Mode=TwoWay}" />
+                        <ComboBox
+                            AutomationProperties.Name="Unidad de la velocidad"
+                            IsEnabled="{x:Bind ViewModel.IsRateLimitEnabled, Mode=OneWay}"
+                            SelectedIndex="{x:Bind ViewModel.RateLimitUnitIndex, Mode=TwoWay}">
                             <x:String>KB/s</x:String>
                             <x:String>MB/s</x:String>
                         </ComboBox>

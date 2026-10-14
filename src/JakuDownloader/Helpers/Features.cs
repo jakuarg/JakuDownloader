@@ -22,13 +22,13 @@ public static class Features
     public static bool Playlists => true;
 
     /// <summary>v00.08.00: subtitulos, capitulos, miniatura y metadatos.</summary>
-    public static bool Subtitles => false;
+    public static bool Subtitles => true;
 
     /// <summary>v00.09.00: SponsorBlock.</summary>
-    public static bool SponsorBlock => false;
+    public static bool SponsorBlock => true;
 
     /// <summary>v00.10.00: cookies, proxy y limite de velocidad.</summary>
-    public static bool Network => false;
+    public static bool Network => true;
 
     /// <summary>v01.xx.xx: otros sitios ademas de YouTube.</summary>
     public static bool OtherSites => false;

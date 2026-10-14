@@ -28,12 +28,38 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
         IProgress<VideoInfo>? info,
         CancellationToken cancellationToken)
     {
-        var arguments = BuildArguments(url, workDirectory, settings.FileNameTemplate, options);
+        var arguments = BuildArguments(url, workDirectory, settings.FileNameTemplate, options, NetworkOptions.DownloadArguments(settings.Current));
         var result = await RunYtDlpAsync(arguments, progress, info, cancellationToken);
         if (!result.Success || result.FilePath is null) return result;
 
         Directory.CreateDirectory(outputDirectory);
-        return DownloadResult.Completed(MoveToDestination(result.FilePath, outputDirectory));
+        var destination = MoveToDestination(result.FilePath, outputDirectory);
+        MoveCompanions(workDirectory, result.FilePath, destination);
+        return DownloadResult.Completed(destination);
+    }
+
+    /// <summary>
+    /// Mueve los archivos que van junto al video (por ejemplo "Titulo [id].es.srt") con el mismo nombre final.
+    /// </summary>
+    private static void MoveCompanions(string workDirectory, string originalPath, string destinationPath)
+    {
+        var originalBase = Path.GetFileNameWithoutExtension(originalPath);
+        var finalBase = Path.GetFileNameWithoutExtension(destinationPath);
+        var outputDirectory = Path.GetDirectoryName(destinationPath)!;
+
+        foreach (var file in Directory.EnumerateFiles(workDirectory, originalBase + ".*").ToList())
+        {
+            var suffix = Path.GetFileName(file)[originalBase.Length..];
+            if (suffix.EndsWith(".part", StringComparison.OrdinalIgnoreCase) || suffix.EndsWith(".ytdl", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var target = Path.Combine(outputDirectory, finalBase + suffix);
+            for (var copy = 2; File.Exists(target); copy++)
+            {
+                target = Path.Combine(outputDirectory, $"{finalBase} ({copy}){suffix}");
+            }
+
+            File.Move(file, target);
+        }
     }
 
     /// <summary>
@@ -100,7 +126,7 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
         using var process = runner.Start(arguments);
 
         var outputTask = ReadOutputAsync(process.StandardOutput, progress, info);
-        var errorTask = process.StandardError.ReadToEndAsync();
+        var errorTask = ReadErrorAsync(process.StandardError, progress);
 
         try
         {
@@ -118,6 +144,9 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
 
         var filePath = await outputTask;
         var error = await errorTask;
+
+        // Con --ignore-errors yt-dlp termina con error si fallo un subtitulo, aunque el video este completo
+        if (filePath is not null && File.Exists(filePath)) return DownloadResult.Completed(filePath);
 
         if (process.ExitCode != 0)
         {
@@ -147,11 +176,12 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
         return destination;
     }
 
-    private static IEnumerable<string> BuildArguments(Uri url, string workDirectory, string outputTemplate, DownloadOptions options)
+    private static IEnumerable<string> BuildArguments(
+        Uri url, string workDirectory, string outputTemplate, DownloadOptions options, IEnumerable<string> networkArguments)
     {
         yield return "--no-mtime";
 
-        foreach (var argument in FormatSelection.BuildArguments(options))
+        foreach (var argument in FormatSelection.BuildArguments(options).Concat(networkArguments))
         {
             yield return argument;
         }
@@ -175,6 +205,28 @@ public sealed class DownloadService(YtDlpRunner runner, SettingsService settings
 
         yield return "--";
         yield return url.AbsoluteUri;
+    }
+
+    /// <summary>
+    /// Lee la salida de errores. Ahi yt-dlp escribe tambien el avance de los postprocesos (unir, convertir,
+    /// incrustar, SponsorBlock), asi que esas lineas se reportan como progreso y el resto se junta para el mensaje de error.
+    /// </summary>
+    private static async Task<string> ReadErrorAsync(StreamReader reader, IProgress<DownloadProgress>? progress)
+    {
+        var text = new System.Text.StringBuilder();
+        while (await reader.ReadLineAsync() is { } line)
+        {
+            if (YtDlpOutput.TryParseProgress(line, out var update))
+            {
+                progress?.Report(update);
+            }
+            else
+            {
+                text.AppendLine(line);
+            }
+        }
+
+        return text.ToString();
     }
 
     private static async Task<string?> ReadOutputAsync(StreamReader reader, IProgress<DownloadProgress>? progress, IProgress<VideoInfo>? info)

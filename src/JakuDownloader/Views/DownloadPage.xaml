@@ -451,97 +451,104 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                <!--
-                    Funciones del roadmap: plegadas para que la pantalla muestre primero lo que ya funciona.
-                    Cuando una se habilita en Features.cs, se mueve arriba, fuera de esta seccion.
-                -->
-                <Expander
-                    Margin="0,28,0,0"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Stretch"
-                    Padding="12">
-                    <Expander.Header>
-                        <StackPanel Padding="0,12" Spacing="2">
-                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Más opciones (próximamente)" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="Subtítulos, capítulos y SponsorBlock. Todavía no funcionan: se habilitan en las próximas versiones."
-                                TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Expander.Header>
+                <toolkit:SettingsExpander Description="Subtítulos, capítulos, portada y metadatos" Header="Subtítulos y capítulos">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE7F0;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard
+                            Description="Solo en descargas de video"
+                            Header="Descargar subtítulos"
+                            Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                            <ToggleSwitch AutomationProperties.Name="Descargar subtítulos" IsOn="{x:Bind ViewModel.DownloadSubtitles, Mode=TwoWay}" />
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard
+                            Description="Códigos exactos separados por coma, por ejemplo es, en o es-419"
+                            Header="Idiomas"
+                            Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                            <StackPanel Spacing="4">
+                                <TextBox
+                                    MinWidth="{StaticResource OptionWidth}"
+                                    AutomationProperties.Name="Idiomas de los subtítulos"
+                                    IsEnabled="{x:Bind ViewModel.DownloadSubtitles, Mode=OneWay}"
+                                    PlaceholderText="es, en"
+                                    Text="{x:Bind ViewModel.SubtitleLanguagesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock
+                                    MaxWidth="260"
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind ViewModel.SubtitleLanguagesError, Mode=OneWay}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{x:Bind ViewModel.HasSubtitleLanguagesError, Mode=OneWay}" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard
+                            Description="Los que genera YouTube cuando el video no tiene subtítulos hechos a mano"
+                            Header="Incluir subtítulos automáticos"
+                            Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                            <ToggleSwitch
+                                AutomationProperties.Name="Incluir subtítulos automáticos"
+                                IsEnabled="{x:Bind ViewModel.DownloadSubtitles, Mode=OneWay}"
+                                IsOn="{x:Bind ViewModel.AutomaticSubtitles, Mode=TwoWay}" />
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard
+                            Description="Quedan dentro del video. Si está apagado, se guardan como archivos .srt al lado"
+                            Header="Incrustar subtítulos"
+                            Visibility="{x:Bind ViewModel.IsVideo, Mode=OneWay}">
+                            <ToggleSwitch
+                                AutomationProperties.Name="Incrustar subtítulos"
+                                IsEnabled="{x:Bind ViewModel.DownloadSubtitles, Mode=OneWay}"
+                                IsOn="{x:Bind ViewModel.EmbedSubtitles, Mode=TwoWay}" />
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Description="Para saltar entre partes desde el reproductor, si el video los tiene" Header="Incrustar capítulos">
+                            <ToggleSwitch AutomationProperties.Name="Incrustar capítulos" IsOn="{x:Bind ViewModel.EmbedChapters, Mode=TwoWay}" />
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Description="{x:Bind ViewModel.ThumbnailDescription, Mode=OneWay}" Header="Incrustar portada y metadatos">
+                            <ToggleSwitch AutomationProperties.Name="Incrustar portada y metadatos" IsOn="{x:Bind ViewModel.EmbedMetadata, Mode=TwoWay}" />
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
 
-                    <StackPanel Spacing="4">
-
-                        <!--  Extras  -->
-                        <StackPanel Margin="1,4,0,8" Style="{StaticResource SectionHeaderStyle}">
-                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Extras" />
-                        </StackPanel>
-
-                        <toolkit:SettingsExpander Description="Subtítulos, capítulos, miniatura y metadatos dentro del archivo" Header="Subtítulos y capítulos">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE7F0;" />
-                            </toolkit:SettingsExpander.HeaderIcon>
-                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.Subtitles}" Version="v00.08" />
-                            <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard Header="Descargar subtítulos">
-                                    <ToggleSwitch AutomationProperties.Name="Descargar subtítulos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard Description="Códigos separados por coma, por ejemplo es, en" Header="Idiomas">
-                                    <TextBox
-                                        MinWidth="{StaticResource OptionWidth}"
-                                        AutomationProperties.Name="Idiomas de los subtítulos"
-                                        IsEnabled="{x:Bind helpers:Features.Subtitles}"
-                                        PlaceholderText="es, en" />
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard Description="Quedan dentro del video en lugar de un archivo aparte" Header="Incrustar subtítulos">
-                                    <ToggleSwitch AutomationProperties.Name="Incrustar subtítulos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard Description="Para saltar entre partes del video desde el reproductor" Header="Incrustar capítulos">
-                                    <ToggleSwitch AutomationProperties.Name="Incrustar capítulos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard Description="Portada, título y artista, útil para música" Header="Incrustar miniatura y metadatos">
-                                    <ToggleSwitch AutomationProperties.Name="Incrustar miniatura y metadatos" IsEnabled="{x:Bind helpers:Features.Subtitles}" />
-                                </toolkit:SettingsCard>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
-
-                        <toolkit:SettingsExpander Description="Segmentos patrocinados marcados por la comunidad" Header="SponsorBlock">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE7C1;" />
-                            </toolkit:SettingsExpander.HeaderIcon>
-                            <controls:FeatureBadge IsAvailable="{x:Bind helpers:Features.SponsorBlock}" Version="v00.09" />
-                            <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard Header="Qué hacer con los segmentos">
-                                    <ComboBox
-                                        MinWidth="{StaticResource OptionWidth}"
-                                        AutomationProperties.Name="Qué hacer con los segmentos"
-                                        IsEnabled="{x:Bind helpers:Features.SponsorBlock}"
-                                        SelectedIndex="0">
-                                        <x:String>Nada</x:String>
-                                        <x:String>Marcarlos como capítulos</x:String>
-                                        <x:String>Eliminarlos del video</x:String>
-                                    </ComboBox>
-                                </toolkit:SettingsCard>
-                                <toolkit:SettingsCard
-                                    HorizontalContentAlignment="Left"
-                                    ContentAlignment="Vertical"
-                                    Header="Categorías">
-                                    <VariableSizedWrapGrid ItemWidth="220" Orientation="Horizontal">
-                                        <CheckBox Content="Patrocinio" IsChecked="True" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Autopromoción" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Pedido de suscripción" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Intro" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Créditos finales" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Avance" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Partes sin música" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                        <CheckBox Content="Relleno" IsEnabled="{x:Bind helpers:Features.SponsorBlock}" />
-                                    </VariableSizedWrapGrid>
-                                </toolkit:SettingsCard>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
-                    </StackPanel>
-                </Expander>
+                <toolkit:SettingsExpander Description="{x:Bind ViewModel.SponsorBlockDescription, Mode=OneWay}" Header="SponsorBlock">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE7C1;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <ComboBox
+                        MinWidth="{StaticResource OptionWidth}"
+                        AutomationProperties.Name="Qué hacer con los segmentos patrocinados"
+                        SelectedIndex="{x:Bind ViewModel.SponsorBlockModeIndex, Mode=TwoWay}">
+                        <x:String>No hacer nada</x:String>
+                        <x:String>Marcarlos como capítulos</x:String>
+                        <x:String>Quitarlos del archivo</x:String>
+                    </ComboBox>
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard
+                            HorizontalContentAlignment="Left"
+                            ContentAlignment="Vertical"
+                            Description="Los segmentos los marca la comunidad de SponsorBlock: no todos los videos los tienen"
+                            Header="Categorías">
+                            <StackPanel Spacing="8">
+                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.SponsorBlockCategories}">
+                                    <ItemsRepeater.Layout>
+                                        <UniformGridLayout MinItemWidth="220" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SponsorBlockCategoryViewModel">
+                                            <CheckBox
+                                                Content="{x:Bind Label}"
+                                                IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                                <TextBlock
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind ViewModel.SponsorBlockError, Mode=OneWay}"
+                                    Visibility="{x:Bind ViewModel.HasSponsorBlockError, Mode=OneWay}" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
             </StackPanel>
         </ScrollViewer>
 

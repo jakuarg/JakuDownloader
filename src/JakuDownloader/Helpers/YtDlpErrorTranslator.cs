@@ -12,14 +12,25 @@ public static class YtDlpErrorTranslator
     // El orden importa: los casos mas especificos van primero
     private static readonly (string[] Patterns, string Message)[] KnownErrors =
     [
+        // Red: cookies y proxy (Configuracion > Red)
+        (["Unable to connect to proxy", "ProxyError", "Cannot connect to proxy", "SOCKS"],
+            "No se pudo conectar al proxy. Revisá la dirección en Configuración > Red o quitalo."),
+        (["cookies database"],
+            "No se encontraron las cookies del navegador elegido. Revisá que esté instalado y que hayas iniciado sesión en YouTube."),
+        (["cookie database", "database is locked"],
+            "No se pudieron leer las cookies porque el navegador está abierto. Cerralo y volvé a intentar."),
+        (["Failed to decrypt", "DPAPI", "app-bound"],
+            "No se pudieron leer las cookies de ese navegador: Chrome y Edge las cifran. Probá con Firefox o con un archivo cookies.txt."),
+        (["Netscape format cookies"], "El archivo de cookies no tiene el formato correcto: tiene que ser un cookies.txt de Netscape."),
+
         (["Private video"], "El video es privado. Solo se puede bajar si el autor lo hace público."),
         (["playlist does not exist", "This playlist is private", "The playlist is private"],
             "La lista no existe o es privada. Revisá que el link sea correcto."),
         (["confirm your age", "age-restricted", "inappropriate for some users"],
-            "El video tiene restricción de edad y pide iniciar sesión. Todavía no se puede bajar: el uso de cookies llega en la v00.10."),
-        (["not a bot"], "YouTube pidió confirmar que no sos un bot. Esperá unos minutos y volvé a intentar."),
+            "El video tiene restricción de edad y pide iniciar sesión. Elegí un navegador con tu sesión de YouTube en Configuración > Red."),
+        (["not a bot"], "YouTube pidió confirmar que no sos un bot. Esperá unos minutos o usá las cookies de tu navegador (Configuración > Red)."),
         (["members-only", "Join this channel"],
-            "El video es solo para miembros del canal. Todavía no se puede bajar: el uso de cookies llega en la v00.10."),
+            "El video es solo para miembros del canal. Si sos miembro, elegí tu navegador en Configuración > Red."),
         (["Premieres in", "live event will begin", "This live event"], "El video todavía no se estrenó. Volvé a intentar cuando esté publicado."),
         (["removed by the uploader", "account associated with this video has been terminated", "copyright"],
             "El video fue eliminado y ya no se puede bajar."),
@@ -28,6 +39,7 @@ public static class YtDlpErrorTranslator
             "El video no está disponible. Revisá que el link sea correcto."),
         (["is not a valid URL", "Unsupported URL", "Incomplete YouTube ID"],
             "El link no es válido o el sitio no está soportado. Por ahora solo funciona YouTube."),
+        (["SponsorBlock"], "No se pudo consultar SponsorBlock. Volvé a intentar o desactivalo para este video."),
         (["HTTP Error 429", "Too Many Requests"], "YouTube está limitando las descargas. Esperá un rato y volvé a intentar."),
         (["HTTP Error 403"], "YouTube rechazó la descarga. Volvé a intentar en unos minutos."),
         (["Requested format is not available"], "Este video no tiene un formato que se pueda bajar como mp4."),

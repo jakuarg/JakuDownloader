@@ -3,12 +3,70 @@ using JakuDownloader.Models;
 namespace JakuDownloader.Helpers;
 
 /// <summary>
-/// Traduce las opciones de descarga a los argumentos de formato de yt-dlp.
+/// Traduce las opciones de descarga a los argumentos de yt-dlp: formato, subtitulos, capitulos y metadatos.
 /// </summary>
 public static class FormatSelection
 {
     public static IEnumerable<string> BuildArguments(DownloadOptions options)
-        => options.Kind == MediaKind.Audio ? AudioArguments(options) : VideoArguments(options);
+        => (options.Kind == MediaKind.Audio ? AudioArguments(options) : VideoArguments(options))
+            .Concat(SubtitleArguments(options))
+            .Concat(EmbedArguments(options))
+            .Concat(SponsorBlockArguments(options));
+
+    private static IEnumerable<string> SponsorBlockArguments(DownloadOptions options)
+    {
+        if (options.SponsorBlock == SponsorBlockMode.Off || string.IsNullOrWhiteSpace(options.SponsorBlockCategories)) yield break;
+
+        // Marcar agrega los capitulos aunque "Incrustar capitulos" este apagado: es lo que se pidio
+        yield return options.SponsorBlock == SponsorBlockMode.Remove ? "--sponsorblock-remove" : "--sponsorblock-mark";
+        yield return options.SponsorBlockCategories;
+    }
+
+    private static IEnumerable<string> SubtitleArguments(DownloadOptions options)
+    {
+        if (!options.WantsSubtitles) yield break;
+
+        if (options.EmbedSubtitles)
+        {
+            // Sin --write-subs: asi yt-dlp borra los archivos de subtitulos despues de incrustarlos.
+            // WebM solo admite WebVTT; mp4 y mkv convierten lo que haga falta
+            yield return "--embed-subs";
+            yield return "--sub-format";
+            yield return "vtt/srt/best";
+        }
+        else
+        {
+            yield return "--write-subs";
+            yield return "--convert-subs";
+            yield return "srt";
+        }
+
+        if (options.AutomaticSubtitles) yield return "--write-auto-subs";
+
+        yield return "--sub-langs";
+        yield return SubtitleLanguages.Normalize(options.SubtitleLanguages);
+
+        // Un subtitulo que falla (por ejemplo, YouTube limita los pedidos) no tiene que tirar abajo el video
+        yield return "--ignore-errors";
+    }
+
+    private static IEnumerable<string> EmbedArguments(DownloadOptions options)
+    {
+        if (options.EmbedChapters) yield return "--embed-chapters";
+
+        if (options.EmbedMetadata)
+        {
+            yield return "--embed-metadata";
+            if (options.SupportsThumbnail)
+            {
+                yield return "--embed-thumbnail";
+
+                // Las miniaturas de YouTube suelen venir en WebP, que mp4 y mp3 no aceptan como portada
+                yield return "--convert-thumbnails";
+                yield return "jpg";
+            }
+        }
+    }
 
     private static IEnumerable<string> AudioArguments(DownloadOptions options)
     {

@@ -28,7 +28,7 @@ public partial class App : Application
                 services.AddSingleton<VideoInfoService>();
                 services.AddSingleton<DownloadService>();
                 services.AddSingleton<NotificationService>();
-                services.AddSingleton<FolderPickerService>();
+                services.AddSingleton<PickerService>();
                 services.AddSingleton<HistoryService>();
                 services.AddSingleton<DownloadQueueViewModel>();
                 services.AddSingleton<DownloadViewModel>();

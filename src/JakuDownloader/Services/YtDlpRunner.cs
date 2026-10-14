@@ -6,7 +6,7 @@ namespace JakuDownloader.Services;
 /// <summary>
 /// Lanza yt-dlp con las opciones que comparten todas las operaciones.
 /// </summary>
-public sealed class YtDlpRunner(ToolLocator toolLocator)
+public sealed class YtDlpRunner(ToolLocator toolLocator, SettingsService settings)
 {
     /// <summary>
     /// Inicia yt-dlp. Los argumentos propios van despues de los comunes; el link tiene que ir al final, despues de "--".
@@ -63,6 +63,12 @@ public sealed class YtDlpRunner(ToolLocator toolLocator)
         {
             yield return "--js-runtimes";
             yield return $"deno:{toolLocator.DenoPath}";
+        }
+
+        // Cookies y proxy valen tambien para la vista previa: un video con restriccion de edad las necesita para mostrarse
+        foreach (var argument in Helpers.NetworkOptions.CommonArguments(settings.Current))
+        {
+            yield return argument;
         }
     }
 }

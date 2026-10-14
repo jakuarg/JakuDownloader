@@ -4,7 +4,7 @@ Descargador de audio y video para Windows, hecho con WinUI 3 y .NET.
 
 La primera meta es YouTube. Más adelante, si es viable, se suman otros sitios como Facebook, X, Instagram y TikTok.
 
-**Versión actual:** v00.07.00 (en desarrollo)
+**Versión actual:** v00.10.00 (en desarrollo)
 
 ![Jaku Downloader](docs/screenshots/descargar.png)
 
@@ -82,19 +82,19 @@ De lo más básico a lo más complejo. Cada versión tiene que funcionar por sí
 - [x] Elegir qué elementos de la lista bajar
 
 ### v00.08.00 - Subtítulos y capítulos
-- [ ] Descargar subtítulos por idioma
-- [ ] Incrustar subtítulos en el archivo
-- [ ] Incrustar capítulos
-- [ ] Incrustar miniatura y metadatos en archivos de audio
+- [x] Descargar subtítulos por idioma
+- [x] Incrustar subtítulos en el archivo
+- [x] Incrustar capítulos
+- [x] Incrustar miniatura y metadatos en archivos de audio
 
 ### v00.09.00 - SponsorBlock
-- [ ] Marcar o eliminar segmentos patrocinados
-- [ ] Elegir qué categorías saltar
+- [x] Marcar o eliminar segmentos patrocinados
+- [x] Elegir qué categorías saltar
 
 ### v00.10.00 - Red
-- [ ] Cookies desde el navegador o desde archivo
-- [ ] Proxy HTTP / SOCKS
-- [ ] Límite de velocidad
+- [x] Cookies desde el navegador o desde archivo
+- [x] Proxy HTTP / SOCKS
+- [x] Límite de velocidad
 
 ### v01.00.00 - Primera versión estable
 - [ ] Revisión general de errores y textos
@@ -242,14 +242,14 @@ Referencia rápida de qué opción de yt-dlp cubre cada característica:
 | Solo audio a mp3 | `-x --audio-format mp3 --audio-quality 0` |
 | Contenedor de salida | `--merge-output-format mp4` / `--remux-video mkv` |
 | Listas y canales | `--flat-playlist --yes-playlist -I 1:500 -J` para listar sin entrar a cada video; después cada video elegido va a la cola como una descarga normal |
-| Subtítulos | `--write-subs --sub-langs es,en --embed-subs` |
+| Subtítulos | Incrustados: `--embed-subs --sub-format vtt/srt/best --sub-langs es,en` (sin `--write-subs`, así se borran los archivos sueltos). Aparte: `--write-subs --convert-subs srt`. Automáticos: `--write-auto-subs`. Siempre con `--ignore-errors` |
 | Capítulos | `--embed-chapters` |
-| Miniatura y metadatos | `--embed-thumbnail --embed-metadata` |
-| SponsorBlock | `--sponsorblock-remove sponsor` / `--sponsorblock-mark all` |
-| Cookies | `--cookies-from-browser <navegador>` / `--cookies <archivo>` |
-| Proxy | `--proxy socks5://host:puerto` |
-| Límite de velocidad | `-r 2M` |
-| Progreso parseable | `--progress --newline --progress-template ...` (`--print` silencia el progreso si no se fuerza con `--progress`) |
+| Miniatura y metadatos | `--embed-metadata --embed-thumbnail --convert-thumbnails jpg` (la portada solo en mp4, mkv, mp3, m4a, opus y flac: en webm y wav yt-dlp falla) |
+| SponsorBlock | `--sponsorblock-mark sponsor,selfpromo` / `--sponsorblock-remove sponsor` (marcar agrega capítulos aunque no se pida `--embed-chapters`) |
+| Cookies | `--cookies-from-browser <navegador>` / `--cookies <archivo>` (en todas las llamadas, también la vista previa) |
+| Proxy | `--proxy socks5://host:puerto` (en todas las llamadas) |
+| Límite de velocidad | `--limit-rate 2M` (solo descargas; va antes del `--` que precede al link) |
+| Progreso parseable | `--progress --newline --progress-template ...` (`--print` silencia el progreso si no se fuerza con `--progress`). La descarga sale por stdout, pero los postprocesos (unir, convertir, incrustar, SponsorBlock) salen por **stderr** |
 | Archivos intermedios | `-P <carpeta temporal>`: yt-dlp trabaja solo ahí y la app mueve el archivo final al destino |
 | Ubicación de herramientas | `--ffmpeg-location`, `--js-runtimes deno:<ruta>` |
 | Actualizar | `-U` |
@@ -263,6 +263,8 @@ Puntos a tener en cuenta:
 - Actualizar la UI desde otros hilos con `DispatcherQueue`.
 - Configuración: `%LOCALAPPDATA%\Jaku Downloader\settings.json`. Solo guarda lo que difiere del valor por defecto.
 - Listas y canales: la raíz de un canal (`/@canal`) devuelve sus pestañas, no sus videos, así que se pide `/@canal/videos`. Se cargan como máximo 500 videos (unos 5 s; un canal grande completo tarda minutos). Un video abierto desde una lista (`watch?v=…&list=…` o `youtu.be/…?list=…`) se baja solo, salvo que se active "Bajar la lista completa". Los videos de una lista se guardan por defecto en una subcarpeta con su nombre.
+- Idiomas de subtítulos: se pasan como códigos exactos (`es`, `en`, `es-419`). Un patrón como `es.*` también trae las traducciones automáticas de YouTube (`es-en`: español traducido del inglés), que son decenas de pedidos y terminan en "429 Too Many Requests". yt-dlp compara sin distinguir mayúsculas, así que no hay patrón que separe regiones (`en-US`) de traducciones (`en-de`). Con `--ignore-errors`, si falla un subtítulo yt-dlp termina con error aunque el video esté completo: la descarga cuenta como exitosa si el archivo final existe.
+- Red: navegador y archivo de cookies se excluyen; si hay archivo, gana el archivo. Chrome, Edge y los basados en Chromium cifran las cookies (app-bound encryption) y yt-dlp a veces no puede leerlas, o encuentra la base bloqueada si el navegador está abierto: Firefox o un `cookies.txt` de Netscape son lo más confiable. yt-dlp vuelve a escribir el `cookies.txt` al terminar. La descarga de herramientas (`ToolInstaller`) todavía no usa el proxy.
 - Historial: `%LOCALAPPDATA%\Jaku Downloader\history.json`, hasta 1000 entradas. Guarda las opciones de cada descarga para "Descargar de nuevo". Quitar del historial no borra el archivo.
 - Cola: corre en el hilo de la interfaz y arranca las más viejas primero, hasta el límite de Configuración (3 por defecto). Pausar mata el proceso pero conserva la carpeta de trabajo; al reanudar, yt-dlp retoma desde los `.part`. La cola no se guarda: al cerrar la app se cancela lo pendiente, con confirmación.
 - Herramientas: se buscan primero en `tools\` junto al ejecutable y después en `%LOCALAPPDATA%\Jaku Downloader\tools`. Si la carpeta de la app no admite escritura (por ejemplo en `Program Files`), las que faltan se instalan en la del usuario. La app las baja de los mismos releases que `scripts\get-tools.ps1` y verifica el SHA-256 antes de instalarlas.

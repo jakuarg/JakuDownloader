@@ -8,16 +8,183 @@ namespace JakuDownloader.ViewModels;
 public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsService _settings;
-    private readonly FolderPickerService _folderPicker;
+    private readonly PickerService _picker;
 
-    public SettingsViewModel(SettingsService settings, FolderPickerService folderPicker, ToolsViewModel tools)
+    // Mientras se cargan los valores guardados, los cambios de propiedades no se vuelven a guardar
+    private readonly bool _loading;
+
+    public SettingsViewModel(SettingsService settings, PickerService picker, ToolsViewModel tools)
     {
         _settings = settings;
-        _folderPicker = folderPicker;
+        _picker = picker;
         Tools = tools;
+
+        _loading = true;
         DownloadDirectory = settings.DownloadDirectory;
         TemplateText = settings.FileNameTemplate;
         MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
+
+        var network = settings.Current;
+        CookiesBrowserIndex = NetworkOptions.Browsers.Select(b => b.Id).ToList().IndexOf(network.CookiesBrowser ?? string.Empty) + 1;
+        CookiesFile = network.CookiesFile;
+        ProxyText = network.Proxy ?? string.Empty;
+        var (rate, megabytes) = NetworkOptions.ParseRateLimit(network.RateLimit);
+        IsRateLimitEnabled = network.RateLimit is not null;
+        RateLimitValue = rate;
+        RateLimitUnitIndex = megabytes ? 1 : 0;
+        _loading = false;
+    }
+
+    // Red: cookies
+
+    public IReadOnlyList<string> CookiesBrowserOptions { get; } = ["No usar", .. NetworkOptions.Browsers.Select(b => b.Label)];
+
+    /// <summary>
+    /// 0: no usar; 1 en adelante: el navegador de <see cref="NetworkOptions.Browsers"/> en esa posicion menos uno.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CookiesDescription))]
+    public partial int CookiesBrowserIndex { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCookiesFile))]
+    [NotifyPropertyChangedFor(nameof(CookiesFileText))]
+    [NotifyPropertyChangedFor(nameof(CookiesDescription))]
+    public partial string? CookiesFile { get; set; }
+
+    public bool HasCookiesFile => CookiesFile is not null;
+
+    public string CookiesFileText => CookiesFile ?? "Ninguno";
+
+    public string CookiesDescription => (CookiesFile, CookiesBrowserIndex) switch
+    {
+        ({ }, _) => "Se usa el archivo de cookies elegido",
+        (_, 0) => "Para videos con restricción de edad o que piden iniciar sesión",
+        (_, 1) => "Usa la sesión de YouTube que tengas abierta en Firefox",
+        _ => "Chrome, Edge y los basados en Chromium cifran las cookies y a veces no se pueden leer. Cerrá el navegador antes de descargar; si falla, probá con Firefox o con un archivo cookies.txt",
+    };
+
+    partial void OnCookiesBrowserIndexChanged(int value)
+    {
+        if (_loading) return;
+
+        var browser = value >= 1 && value <= NetworkOptions.Browsers.Count ? NetworkOptions.Browsers[value - 1].Id : null;
+        if (browser == _settings.Current.CookiesBrowser) return;
+
+        // Navegador y archivo se excluyen: elegir uno descarta el otro
+        if (TrySave(current => current with { CookiesBrowser = browser, CookiesFile = browser is null ? current.CookiesFile : null }))
+        {
+            CookiesFile = _settings.Current.CookiesFile;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ChooseCookiesFileAsync()
+    {
+        IsErrorOpen = false;
+        string? path;
+        try
+        {
+            path = await _picker.PickFileAsync(".txt");
+        }
+        catch (Exception)
+        {
+            ShowError("No se pudo abrir el selector de archivos", "Volvé a intentar.");
+            return;
+        }
+
+        if (path is null) return;
+
+        if (!NetworkOptions.LooksLikeCookiesFile(path))
+        {
+            ShowError("Ese archivo no parece un cookies.txt",
+                "yt-dlp solo acepta cookies en formato Netscape. Exportalas con una extensión del navegador como \"Get cookies.txt LOCALLY\".");
+            return;
+        }
+
+        if (TrySave(current => current with { CookiesFile = path, CookiesBrowser = null }))
+        {
+            CookiesFile = path;
+            CookiesBrowserIndex = 0;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearCookiesFile()
+    {
+        if (TrySave(current => current with { CookiesFile = null })) CookiesFile = null;
+    }
+
+    // Red: proxy
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProxyError))]
+    [NotifyPropertyChangedFor(nameof(HasProxyError))]
+    [NotifyCanExecuteChangedFor(nameof(SaveProxyCommand))]
+    public partial string ProxyText { get; set; }
+
+    public string ProxyError => ProxyText.Trim().Length == 0 ? string.Empty : NetworkOptions.ValidateProxy(ProxyText) ?? string.Empty;
+
+    public bool HasProxyError => ProxyError.Length > 0;
+
+    public string ProxyDescription => _settings.Current.Proxy is { } proxy
+        ? $"En uso: {proxy}"
+        : "Solo el tráfico de la app pasa por el proxy (HTTP o SOCKS)";
+
+    public bool HasProxy => _settings.Current.Proxy is not null;
+
+    private bool CanSaveProxy() => ProxyText.Trim().Length > 0 && !HasProxyError && ProxyText.Trim() != _settings.Current.Proxy;
+
+    [RelayCommand(CanExecute = nameof(CanSaveProxy))]
+    private void SaveProxy() => SetProxy(ProxyText.Trim());
+
+    [RelayCommand]
+    private void ClearProxy()
+    {
+        ProxyText = string.Empty;
+        SetProxy(null);
+    }
+
+    private void SetProxy(string? proxy)
+    {
+        IsErrorOpen = false;
+        if (!TrySave(current => current with { Proxy = proxy })) return;
+        OnPropertyChanged(nameof(ProxyDescription));
+        OnPropertyChanged(nameof(HasProxy));
+        SaveProxyCommand.NotifyCanExecuteChanged();
+    }
+
+    // Red: limite de velocidad
+
+    [ObservableProperty]
+    public partial bool IsRateLimitEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial double RateLimitValue { get; set; }
+
+    /// <summary>
+    /// 0: KB/s, 1: MB/s.
+    /// </summary>
+    [ObservableProperty]
+    public partial int RateLimitUnitIndex { get; set; }
+
+    partial void OnIsRateLimitEnabledChanged(bool value) => SaveRateLimit();
+
+    partial void OnRateLimitValueChanged(double value) => SaveRateLimit();
+
+    partial void OnRateLimitUnitIndexChanged(int value) => SaveRateLimit();
+
+    private void SaveRateLimit()
+    {
+        if (_loading) return;
+
+        var rateLimit = IsRateLimitEnabled ? NetworkOptions.FormatRateLimit(RateLimitValue, RateLimitUnitIndex == 1) : null;
+
+        // NumberBox vacio (NaN): se espera a que escriban un numero
+        if (IsRateLimitEnabled && rateLimit is null) return;
+        if (rateLimit == _settings.Current.RateLimit) return;
+
+        TrySave(current => current with { RateLimit = rateLimit });
     }
 
     /// <summary>
@@ -29,7 +196,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnMaxConcurrentDownloadsChanged(double value)
     {
         // NumberBox informa NaN si se borra el numero: se espera a que escriban uno
-        if (double.IsNaN(value)) return;
+        if (_loading || double.IsNaN(value)) return;
 
         var limit = Math.Clamp((int)Math.Round(value), 1, 10);
         if (limit == _settings.MaxConcurrentDownloads) return;
@@ -73,7 +240,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         string? folder;
         try
         {
-            folder = await _folderPicker.PickFolderAsync();
+            folder = await _picker.PickFolderAsync();
         }
         catch (Exception)
         {
